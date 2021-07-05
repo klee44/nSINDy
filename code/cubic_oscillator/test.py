@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 import lib.utils as utils
 from lib.odefunc import ODEfunc
-from torchdiffeq import odeint as odeint
+from lib.torchdiffeq import odeint as odeint
 #from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
 

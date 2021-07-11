@@ -13,7 +13,11 @@ import numpy as np
 import math 
 import glob
 import re
+import itertools
+import toolz
+import scipy
 from shutil import copyfile
+from collections import Counter
 
 def makedirs(dirname):
 	if not os.path.exists(dirname):
@@ -58,3 +62,26 @@ def get_batch(data, t, batch_len=60, batch_size=100, device = torch.device("cpu"
 	batch_t = t[:batch_len]  # (T)
 	batch_y = torch.stack([data[r,s + i,:] for i in range(batch_len)], dim=1)  # (T, M, D)
 	return batch_y0.to(device), batch_t.to(device), batch_y.to(device)
+
+class TensorProduct(nn.Module):
+	def __init__(self, dim, order):
+		super(TensorProduct, self).__init__()
+		self.dim = dim
+		self.indc = list(itertools.product(*[range(order+1) for _ in range(dim)]))
+		self.nterms = len(self.indc)
+
+	def forward(self,x):
+		ret = torch.stack([torch.prod(torch.stack([x[...,d]**ind[d] for d in range(self.dim)]),0) for ind in self.indc],-1)
+		return ret
+
+class Taylor(nn.Module):
+	def __init__(self, dim, order):
+		super(Taylor, self).__init__()
+		self.dim = dim
+		self.indc = Counter(map(toolz.compose(tuple,sorted),itertools.chain(*[itertools.product(*[range(dim) for _ in range(o)]) for o in range(order+1)])
+                  ))
+		self.nterms = len(self.indc)
+
+	def forward(self,x):
+		ret = torch.cat([torch.unsqueeze(1.*self.indc[ind]/scipy.math.factorial(len(ind))*torch.prod(torch.stack([x[...,d]**ind.count(d) for d in range(self.dim)]),0),-1)  for ind in sorted(self.indc)],-1)
+		return ret 

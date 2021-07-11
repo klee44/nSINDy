@@ -14,7 +14,7 @@ from random import SystemRandom
 import matplotlib.pyplot as plt
 
 import lib.utils as utils
-from lib.odefunc import ODEfunc
+from lib.odefunc import ODEfunc, ODEfuncPoly
 from lib.torchdiffeq import odeint as odeint
 #from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
@@ -73,6 +73,7 @@ test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_si
 #val_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
 #test_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
 odefunc = ODEfunc(2, args.nlayer, args.nunit)
+
 
 params = odefunc.parameters()
 optimizer = optim.Adamax(params, lr=args.lr)

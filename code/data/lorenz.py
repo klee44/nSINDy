@@ -7,7 +7,7 @@ from scipy import integrate
 dt = 5e-4       # set to 5e-4 for Lorenz
 noise = 0.      # for study of noisy measurements, we use noise=0.01, 0.02; otherwise we leave it as 0.
 n_forward = 5
-total_steps = 10240 * n_forward
+total_steps = 1024 * n_forward
 t = np.linspace(0, (total_steps)*dt, total_steps+1)
 
 # system
@@ -65,4 +65,4 @@ train_data += noise*train_data.std(1).mean(0)*np.random.randn(*train_data.shape)
 val_data += noise*val_data.std(1).mean(0)*np.random.randn(*val_data.shape)
 test_data += noise*test_data.std(1).mean(0)*np.random.randn(*test_data.shape)
 
-np.savez('lorenz_extra.npz', train_data=train_data,val_data=val_data,test_data=test_data)
+np.savez('lorenz.npz', train_data=train_data,val_data=val_data,test_data=test_data)

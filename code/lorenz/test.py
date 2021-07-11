@@ -14,7 +14,7 @@ from random import SystemRandom
 import matplotlib.pyplot as plt
 
 import lib.utils as utils
-from lib.odefunc import ODEfunc, ODEfuncPoly
+from lib.odefunc import ODEfunc
 from lib.torchdiffeq import odeint as odeint
 #from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
@@ -53,9 +53,9 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("data/cubic_oscillator.npz")
-h_ref = 0.01
-Time = 51.20 
+data = np.load("../data/lorenz.npz")
+h_ref = 0.0005
+Time = 2.56 
 N_steps = int(np.floor(Time/h_ref)) + 1
 t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
 t = torch.tensor(t/(t[-1])).squeeze()
@@ -72,8 +72,7 @@ val_data = torch.utils.data.DataLoader(torch.tensor(data['val_data']),batch_size
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_size=50)
 #val_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
 #test_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
-odefunc = ODEfunc(2, args.nlayer, args.nunit)
-
+odefunc = ODEfunc(3, args.nlayer, args.nunit)
 
 params = odefunc.parameters()
 optimizer = optim.Adamax(params, lr=args.lr)
@@ -110,10 +109,10 @@ for itr in range(args.nepoch):
 		plt.figure()
 		plt.tight_layout()
 		save_file = os.path.join(fig_save_path,"image_{:03d}.png".format(frame))
-		fig = plt.figure(figsize=(8,4))
+		fig = plt.figure(figsize=(12,4))
 		axes = []
-		for i in range(2):
-			axes.append(fig.add_subplot(1,2,i+1))
+		for i in range(3):
+			axes.append(fig.add_subplot(1,3,i+1))
 			axes[i].plot(t,d[0,:,i].detach().numpy(),lw=2,color='k')
 			axes[i].plot(t,pred_y.detach().numpy()[0,:,i],lw=2,color='c',ls='--')
 			plt.savefig(save_file)
@@ -138,8 +137,8 @@ print('test loss', test_loss)
 
 fig = plt.figure(figsize=(12,4))
 axes = []
-for i in range(2):
-	axes.append(fig.add_subplot(1,2,i+1))
+for i in range(3):
+	axes.append(fig.add_subplot(1,3,i+1))
 	axes[i].plot(t,data['test_data'][0,:,i],lw=3,color='k')
 	axes[i].plot(t,test_sol[0,:,i],lw=2,color='c',ls='--')
 

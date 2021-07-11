@@ -14,7 +14,7 @@ from random import SystemRandom
 import matplotlib.pyplot as plt
 
 import lib.utils as utils
-from lib.odefunc import ODEfunc, ODEfuncPoly
+from lib.odefunc import ODEfunc
 from lib.torchdiffeq import odeint as odeint
 #from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
@@ -53,7 +53,7 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("data/cubic_oscillator.npz")
+data = np.load("../data/vdp.npz")
 h_ref = 0.01
 Time = 51.20 
 N_steps = int(np.floor(Time/h_ref)) + 1
@@ -73,7 +73,6 @@ test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_si
 #val_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
 #test_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
 odefunc = ODEfunc(2, args.nlayer, args.nunit)
-
 
 params = odefunc.parameters()
 optimizer = optim.Adamax(params, lr=args.lr)

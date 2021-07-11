@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 
 import lib.utils as utils
+from lib.utils import TensorProduct, Taylor
 
 #####################################################################################################
 
@@ -51,3 +52,17 @@ class ODEfunc(nn.Module):
 		output = self.gradient_net(y)
 		return output 
 
+class ODEfuncPoly(nn.Module):
+	def __init__(self, dim, order, device = torch.device("cpu")):
+		super(ODEfuncPoly, self).__init__()
+		self.NFE = 0
+		#self.TP = TensorProduct(dim,order)
+		self.TP = Taylor(dim,order)
+		#self.C = nn.Parameter(torch.randn((self.TP.nterms, dim), requires_grad=True))
+		self.C = nn.Linear(self.TP.nterms,dim,bias=False)
+
+	def forward(self, t, y):
+		P = self.TP(y)
+		#output = torch.einsum('ab,za->zb',self.C,P)
+		output = self.C(P)
+		return output 

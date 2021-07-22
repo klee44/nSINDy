@@ -69,10 +69,24 @@ class TensorProduct(nn.Module):
 		self.dim = dim
 		self.indc = list(itertools.product(*[range(order+1) for _ in range(dim)]))
 		self.nterms = len(self.indc)
+		print(self.indc)
 
 	def forward(self,x):
 		ret = torch.stack([torch.prod(torch.stack([x[...,d]**ind[d] for d in range(self.dim)]),0) for ind in self.indc],-1)
 		return ret
+
+class TotalDegree(nn.Module):
+	def __init__(self, dim, order):
+		super(TotalDegree, self).__init__()
+		self.dim = dim
+		self.indc = Counter(map(toolz.compose(tuple,sorted),itertools.chain(*[itertools.product(*[range(dim) for _ in range(o)]) for o in range(order+1)])
+                  ))
+		print(sorted(self.indc))
+		self.nterms = len(self.indc)
+
+	def forward(self,x):
+		ret = torch.cat([torch.unsqueeze(torch.prod(torch.stack([x[...,d]**ind.count(d) for d in range(self.dim)]),0),-1)  for ind in sorted(self.indc)],-1)
+		return ret 
 
 class Taylor(nn.Module):
 	def __init__(self, dim, order):
@@ -80,6 +94,7 @@ class Taylor(nn.Module):
 		self.dim = dim
 		self.indc = Counter(map(toolz.compose(tuple,sorted),itertools.chain(*[itertools.product(*[range(dim) for _ in range(o)]) for o in range(order+1)])
                   ))
+		print(sorted(self.indc))
 		self.nterms = len(self.indc)
 
 	def forward(self,x):

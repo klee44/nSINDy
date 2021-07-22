@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 import lib.utils as utils
-from lib.utils import TensorProduct, Taylor
+from lib.utils import TensorProduct, Taylor, TotalDegree
 
 #####################################################################################################
 
@@ -57,7 +57,8 @@ class ODEfuncPoly(nn.Module):
 		super(ODEfuncPoly, self).__init__()
 		self.NFE = 0
 		#self.TP = TensorProduct(dim,order)
-		self.TP = Taylor(dim,order)
+		self.TP = TotalDegree(dim,order)
+		#self.TP = Taylor(dim,order)
 		#self.C = nn.Parameter(torch.randn((self.TP.nterms, dim), requires_grad=True))
 		self.C = nn.Linear(self.TP.nterms,dim,bias=False)
 
@@ -66,3 +67,16 @@ class ODEfuncPoly(nn.Module):
 		#output = torch.einsum('ab,za->zb',self.C,P)
 		output = self.C(P)
 		return output 
+
+class ODEfuncPolyCubic(nn.Module):
+	def __init__(self, device = torch.device("cpu")):
+		super(ODEfuncPolyCubic, self).__init__()
+		self.NFE = 0
+		self.true_A = torch.tensor([[-0.1, 2.0], [-2.0, -0.1]]).to(device)
+
+	def forward(self, t, y):
+		xdot = -0.1*y[:,0]**3 + 2.0*y[:,1]**3 
+		ydot = -2.0*y[:,0]**3 - 0.1*y[:,1]**3
+		#print(torch.mm(y**3, self.true_A))
+		return torch.cat((torch.unsqueeze(xdot,-1),torch.unsqueeze(ydot,-1)),axis=-1)
+		#return torch.mm(y**3, self.true_A)

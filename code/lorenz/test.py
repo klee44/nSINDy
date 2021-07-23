@@ -53,12 +53,12 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/lorenz.npz")
-h_ref = 0.0005
+data = np.load("../data/lorenz_torch.npz")
+h_ref = 5e-4 
 Time = 2.56 
 N_steps = int(np.floor(Time/h_ref)) + 1
 t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
-t = torch.tensor(t/(t[-1])).squeeze()
+t = torch.tensor(t).squeeze()
 
 '''
 train_data = torch.utils.data.DataLoader(torch.tensor(data['train_data']),batch_size=50)
@@ -76,7 +76,7 @@ odefunc = ODEfunc(3, args.nlayer, args.nunit)
 
 params = odefunc.parameters()
 optimizer = optim.Adamax(params, lr=args.lr)
-scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9977)
+scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9987)
 
 best_loss = 1e30
 frame = 0 

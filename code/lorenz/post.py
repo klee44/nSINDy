@@ -64,12 +64,12 @@ t = torch.tensor(t).squeeze()
 
 
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_size=50)
-#odefunc = ODEfunc(3, args.nlayer, args.nunit)
-odefunc = ODEfuncPoly(3, 2)
+odefunc = ODEfunc(3, args.nlayer, args.nunit)
+#odefunc = ODEfuncPoly(3, 2)
 
 ckpt = torch.load(ckpt_path)
 odefunc.load_state_dict(ckpt['state_dict'])
-print(odefunc.C.weight)
+#print(odefunc.C.weight.detach().numpy())
 
 odefunc.NFE = 0
 test_loss = 0

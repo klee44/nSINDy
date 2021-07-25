@@ -14,11 +14,12 @@ from random import SystemRandom
 import matplotlib.pyplot as plt
 
 import lib.utils as utils
-from lib.odefunc import ODEfunc
+from lib.odefunc import ODEfunc, ODEfuncPoly
 from lib.torchdiffeq import odeint as odeint
 #from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
-
+import torch.nn.utils.prune as prune
+from lib.prune import ThresholdPruning
 import argparse
 parser = argparse.ArgumentParser(description='.')
 parser.add_argument('--r', type=int, default=0, help='random_seed')
@@ -54,7 +55,7 @@ utils.makedirs(fig_save_path)
 print(ckpt_path)
 
 data = np.load("../data/hopf_torch.npz")
-h_ref = 0.01
+h_ref = 0.01 
 Time = 51.20 
 N_steps = int(np.floor(Time/h_ref)) + 1
 t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
@@ -72,7 +73,9 @@ val_data = torch.utils.data.DataLoader(torch.tensor(data['val_data']),batch_size
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_size=50)
 #val_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
 #test_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
-odefunc = ODEfunc(3, args.nlayer, args.nunit)
+odefunc = ODEfuncPoly(3, 3)
+
+parameters_to_prune = ((odefunc.C, "weight"),)
 
 params = odefunc.parameters()
 optimizer = optim.Adamax(params, lr=args.lr)
@@ -83,19 +86,24 @@ frame = 0
 
 for itr in range(args.nepoch):
 	print('=={0:d}=='.format(itr))
-	#for mb_data in train_data:
 	for i in range(args.niterbatch):
 		optimizer.zero_grad()
 		batch_y0, batch_t, batch_y = utils.get_batch(train_data,t,args.lMB,args.nMB)
 		pred_y = odeint(odefunc, batch_y0, batch_t, method=args.odeint).to(device).transpose(0,1)
 		loss = torch.mean(torch.abs(pred_y - batch_y))
-		print(itr,i,loss.item())
+		l1_norm = 1e-4*torch.norm(odefunc.C.weight, p=1)
+		loss += l1_norm
+		print(itr,i,loss.item(),l1_norm.item())
 		loss.backward()
 		optimizer.step()
+		prune.global_unstructured(parameters_to_prune, pruning_method=ThresholdPruning, threshold=1e-6)
 	scheduler.step()
-
+	
+	
 	with torch.no_grad():
 		val_loss = 0
+		print(odefunc.C.weight)
+		
 		for d in val_data:
 			pred_y = odeint(odefunc, d[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
 			val_loss += torch.mean(torch.abs(pred_y - d)).item()
@@ -124,6 +132,10 @@ for itr in range(args.nepoch):
 
 ckpt = torch.load(ckpt_path)
 odefunc.load_state_dict(ckpt['state_dict'])
+
+prune.remove(odefunc.C, 'weight')
+print(odefunc.C.weight)
+torch.save({'state_dict': odefunc.state_dict(),}, ckpt_path)
 
 odefunc.NFE = 0
 test_loss = 0

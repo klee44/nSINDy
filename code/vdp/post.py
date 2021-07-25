@@ -54,7 +54,7 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/vdp.npz")
+data = np.load("../data/vdp_torch.npz")
 h_ref = 0.01
 Time = 51.20 
 N_steps = int(np.floor(Time/h_ref)) + 1
@@ -64,11 +64,12 @@ t = torch.tensor(t).squeeze()
 
 
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_size=50)
-#odefunc = ODEfunc(2, args.nlayer, args.nunit)
-odefunc = ODEfuncPoly(2, 2)
+odefunc = ODEfunc(2, args.nlayer, args.nunit)
+#odefunc = ODEfuncPoly(2, 3)
 
 ckpt = torch.load(ckpt_path)
 odefunc.load_state_dict(ckpt['state_dict'])
+#print(odefunc.C.weight.detach().numpy())
 
 odefunc.NFE = 0
 test_loss = 0

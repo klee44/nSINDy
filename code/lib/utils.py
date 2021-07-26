@@ -63,6 +63,13 @@ def get_batch(data, t, batch_len=60, batch_size=100, device = torch.device("cpu"
 	batch_y = torch.stack([data[r,s + i,:] for i in range(batch_len)], dim=1)  # (T, M, D)
 	return batch_y0.to(device), batch_t.to(device), batch_y.to(device)
 
+def get_batch_traj(data, t, batch_size=100, device = torch.device("cpu")):
+	r = torch.from_numpy(np.random.choice(np.arange(len(data),dtype=np.int64),batch_size, replace=False))
+	batch_y0 = data[r,0,:]  # (M, D)
+	batch_t = t  # (T)
+	batch_y = data[r,:,:]#torch.stack([data[r,s + i,:] for i in range(batch_len)], dim=1)  # (T, M, D)
+	return batch_y0.to(device), batch_t.to(device), batch_y.to(device)
+
 class TensorProduct(nn.Module):
 	def __init__(self, dim, order):
 		super(TensorProduct, self).__init__()

@@ -68,15 +68,20 @@ class ODEfuncPoly(nn.Module):
 		output = self.C(P)
 		return output 
 
-class ODEfuncPolyCubic(nn.Module):
-	def __init__(self, device = torch.device("cpu")):
-		super(ODEfuncPolyCubic, self).__init__()
+class ODEfuncHNN(nn.Module):
+	def __init__(self, dim, order, device = torch.device("cpu")):
+		super(ODEfuncHNN, self).__init__()
 		self.NFE = 0
-		self.true_A = torch.tensor([[-0.1, 2.0], [-2.0, -0.1]]).to(device)
+		self.TP = TotalDegree(dim,order)
+		self.C = nn.Linear(self.TP.nterms,1,bias=False)
+		self.L = np.zeros((2,2))
+		self.L[0,1], self.L[1,0] = -1, 1
+		self.L = torch.tensor(self.L).to(device)
 
 	def forward(self, t, y):
-		xdot = -0.1*y[:,0]**3 + 2.0*y[:,1]**3 
-		ydot = -2.0*y[:,0]**3 - 0.1*y[:,1]**3
-		#print(torch.mm(y**3, self.true_A))
-		return torch.cat((torch.unsqueeze(xdot,-1),torch.unsqueeze(ydot,-1)),axis=-1)
-		#return torch.mm(y**3, self.true_A)
+		P = self.TP(y)
+		H = self.C(P) 
+
+		dH = torch.autograd.grad(H.sum(), y, create_graph=True)[0]
+		output = dH @ self.L.t()
+		return output 

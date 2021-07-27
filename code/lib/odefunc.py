@@ -75,7 +75,7 @@ class ODEfuncHNN(nn.Module):
 		self.TP = TotalDegree(dim,order)
 		self.C = nn.Linear(self.TP.nterms,1,bias=False)
 		self.L = np.zeros((2,2))
-		self.L[0,1], self.L[1,0] = -1, 1
+		self.L[0,1], self.L[1,0] = 1, -1
 		self.L = torch.tensor(self.L).to(device)
 
 	def forward(self, t, y):

@@ -14,7 +14,7 @@ from random import SystemRandom
 import matplotlib.pyplot as plt
 
 import lib.utils as utils
-from lib.odefunc import ODEfunc
+from lib.odefunc import ODEfunc, ODEfuncPoly
 #from lib.torchdiffeq import odeint as odeint
 from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
@@ -54,20 +54,22 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/hopf.npz")
+data = np.load("../data/hopf_torch.npz")
 h_ref = 0.01
 Time = 51.20 
 N_steps = int(np.floor(Time/h_ref)) + 1
 t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
-t = torch.tensor(t/(t[-1])).squeeze()
+t = torch.tensor(t).squeeze()
 
 
 
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_size=50)
-odefunc = ODEfunc(3, args.nlayer, args.nunit)
+#odefunc = ODEfunc(2, args.nlayer, args.nunit)
+odefunc = ODEfuncPoly(3, 3)
 
 ckpt = torch.load(ckpt_path)
 odefunc.load_state_dict(ckpt['state_dict'])
+print(odefunc.C.weight.detach().numpy())
 
 odefunc.NFE = 0
 test_loss = 0
@@ -84,7 +86,7 @@ for i in range(10):
 	axes = []
 
 	axes.append(fig.add_subplot(1,2,1))
-	for k in range(3):
+	for k in range(2):
 		axes[0].plot(t,data['test_data'][i,:,k],lw=3,color='k')
 		axes[0].plot(t,test_sol[i,:,k],lw=2,color='c',ls='--')
 

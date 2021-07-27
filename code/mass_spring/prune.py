@@ -56,7 +56,7 @@ print(ckpt_path)
 
 data = np.load("../data/mass_spring_torch.npz")
 h_ref = 0.1 
-Time = 30
+Time = 3
 N_steps = int(np.floor(Time/h_ref)) + 1
 t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
 t = torch.tensor(t).squeeze()
@@ -89,6 +89,7 @@ for itr in range(args.nepoch):
 	for i in range(args.niterbatch):
 		optimizer.zero_grad()
 		batch_y0, batch_t, batch_y = utils.get_batch_traj(train_data,t,args.nMB)
+		#batch_y0, batch_t, batch_y = utils.get_batch(train_data,t,args.lMB,args.nMB)
 		pred_y = odeint(odefunc, batch_y0, batch_t, method=args.odeint).to(device).transpose(0,1)
 		loss = torch.mean(torch.abs(pred_y - batch_y))
 		l1_norm = 1e-4*torch.norm(odefunc.C.weight, p=1)
@@ -100,34 +101,34 @@ for itr in range(args.nepoch):
 	scheduler.step()
 	
 	
-	with torch.no_grad():
-		val_loss = 0
-		print(odefunc.C.weight)
+	#with torch.no_grad():
+	val_loss = 0
+	print(odefunc.C.weight)
 		
-		for d in val_data:
-			pred_y = odeint(odefunc, d[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
-			val_loss += torch.mean(torch.abs(pred_y - d)).item()
-		print('val loss', val_loss)
+	for d in val_data:
+		pred_y = odeint(odefunc, d[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
+		val_loss += torch.mean(torch.abs(pred_y - d)).item()
+	print('val loss', val_loss)
 			
-		if best_loss > val_loss:
-			print('saving...', val_loss)
-			torch.save({'state_dict': odefunc.state_dict(),}, ckpt_path)
-			best_loss = val_loss 
+	if best_loss > val_loss:
+		print('saving...', val_loss)
+		torch.save({'state_dict': odefunc.state_dict(),}, ckpt_path)
+		best_loss = val_loss 
 
-		plt.figure()
-		plt.tight_layout()
-		save_file = os.path.join(fig_save_path,"image_{:03d}.png".format(frame))
-		fig = plt.figure(figsize=(8,4))
-		axes = []
-		for i in range(2):
-			axes.append(fig.add_subplot(1,2,i+1))
-			axes[i].plot(t,d[0,:,i].detach().numpy(),lw=2,color='k')
-			axes[i].plot(t,pred_y.detach().numpy()[0,:,i],lw=2,color='c',ls='--')
-			plt.savefig(save_file)
-		plt.close(fig)
-		plt.close('all')
-		plt.clf()
-		frame += 1
+	plt.figure()
+	plt.tight_layout()
+	save_file = os.path.join(fig_save_path,"image_{:03d}.png".format(frame))
+	fig = plt.figure(figsize=(8,4))
+	axes = []
+	for i in range(2):
+		axes.append(fig.add_subplot(1,2,i+1))
+		axes[i].plot(t,d[0,:,i].detach().numpy(),lw=2,color='k')
+		axes[i].plot(t,pred_y.detach().numpy()[0,:,i],lw=2,color='c',ls='--')
+		plt.savefig(save_file)
+	plt.close(fig)
+	plt.close('all')
+	plt.clf()
+	frame += 1
 
 
 ckpt = torch.load(ckpt_path)

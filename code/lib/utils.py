@@ -95,6 +95,20 @@ class TotalDegree(nn.Module):
 		ret = torch.cat([torch.unsqueeze(torch.prod(torch.stack([x[...,d]**ind.count(d) for d in range(self.dim)]),0),-1)  for ind in sorted(self.indc)],-1)
 		return ret 
 
+class TotalDegreeTrig(nn.Module):
+	def __init__(self, dim, order):
+		super(TotalDegreeTrig, self).__init__()
+		self.dim = dim
+		self.indc = Counter(map(toolz.compose(tuple,sorted),itertools.chain(*[itertools.product(*[range(dim) for _ in range(o)]) for o in range(order+1)])
+                  ))
+		print(sorted(self.indc))
+		self.nterms = len(self.indc)+8
+
+	def forward(self,x):
+		ret = torch.cat([torch.unsqueeze(torch.prod(torch.stack([x[...,d]**ind.count(d) for d in range(self.dim)]),0),-1)  for ind in sorted(self.indc)],-1)
+		ret = torch.cat((ret, torch.cos(x[:,0]), torch.sin(x[:,0]), torch.cos(x[:,1]), torch.sin(x[:,1]),torch.cos(2.*x[:,0]), torch.sin(2.*x[:,0]), torch.cos(2.*x[:,1]), torch.sin(2.*x[:,1])),-1)
+		return ret 
+
 class Taylor(nn.Module):
 	def __init__(self, dim, order):
 		super(Taylor, self).__init__()

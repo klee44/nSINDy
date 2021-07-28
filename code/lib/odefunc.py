@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 import lib.utils as utils
-from lib.utils import TensorProduct, Taylor, TotalDegree
+from lib.utils import TensorProduct, Taylor, TotalDegree, TotalDegreeTrig
 
 #####################################################################################################
 
@@ -68,11 +68,41 @@ class ODEfuncPoly(nn.Module):
 		output = self.C(P)
 		return output 
 
+class ODEfuncPolyTrig(nn.Module):
+	def __init__(self, dim, order, device = torch.device("cpu")):
+		super(ODEfuncPolyTrig, self).__init__()
+		self.NFE = 0
+		self.TP = TotalDegreeTrig(dim,order)
+		self.C = nn.Linear(self.TP.nterms,dim,bias=False)
+
+	def forward(self, t, y):
+		P = self.TP(y)
+		output = self.C(P)
+		return output
+
 class ODEfuncHNN(nn.Module):
 	def __init__(self, dim, order, device = torch.device("cpu")):
 		super(ODEfuncHNN, self).__init__()
 		self.NFE = 0
 		self.TP = TotalDegree(dim,order)
+		self.C = nn.Linear(self.TP.nterms,1,bias=False)
+		self.L = np.zeros((2,2))
+		self.L[0,1], self.L[1,0] = 1, -1
+		self.L = torch.tensor(self.L).to(device)
+
+	def forward(self, t, y):
+		P = self.TP(y)
+		H = self.C(P) 
+
+		dH = torch.autograd.grad(H.sum(), y, create_graph=True)[0]
+		output = dH @ self.L.t()
+		return output 
+
+class ODEfuncHNNTrig(nn.Module):
+	def __init__(self, dim, order, device = torch.device("cpu")):
+		super(ODEfuncHNNTrig, self).__init__()
+		self.NFE = 0
+		self.TP = TotalDegreeTrig(dim,order)
 		self.C = nn.Linear(self.TP.nterms,1,bias=False)
 		self.L = np.zeros((2,2))
 		self.L[0,1], self.L[1,0] = 1, -1

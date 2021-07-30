@@ -22,7 +22,7 @@ t = torch.linspace(0, (total_steps)*dt, total_steps+1).to(device)
 # gamma = .25
 # k = 6.
 def rhs_torch(t,x):
-	return torch.cat( (x[:,1], 6.*torch.sin(x[:,0])-0.25*x[:,1], 0.25*x[:,0]**2), axis=-1)
+	return torch.cat( (x[:,1], -6.*torch.sin(x[:,0])-0.25*x[:,1], 0.25*x[:,1]**2), axis=-1)
 
 # simulation parameters
 np.random.seed(2)

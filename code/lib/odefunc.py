@@ -115,3 +115,47 @@ class ODEfuncHNNTrig(nn.Module):
 		dH = torch.autograd.grad(H.sum(), y, create_graph=True)[0]
 		output = dH @ self.L.t()
 		return output 
+
+class ODEfuncGNN(nn.Module):
+	def __init__(self, dim, order, D1, D2, device = torch.device("cpu")):
+		super(ODEfuncGNN, self).__init__()
+		self.NFE = 0
+
+		self.P_E = TotalDegreeTrig(dim,order)
+		self.C = nn.Linear(self.P_E.nterms,1,bias=False)
+
+		self.L = np.zeros((3,3))
+		self.L[0,1], self.L[1,0] = 1, -1
+		self.L = torch.tensor(self.L).to(device)
+
+		self.D_M = nn.Parameter(torch.randn((D1, D2), requires_grad=True))
+		self.L_M = nn.Parameter(torch.randn((dim, dim, D1), requires_grad=True))
+
+	def friction_matrix(self,dE):
+		D = self.D_M @ torch.transpose(self.D_M, 0, 1)
+		L = (self.L_M - torch.transpose(self.L_M, 0, 1))/2.0
+		zeta = torch.einsum('abm,mn,cdn->abcd',L,D,L) # zeta [alpha, beta, mu, nu] 
+		self.M = torch.einsum('abmn,zb,zn->zam',zeta,dE,dE)
+
+	def friction_matvec(self,dE,dS): 	
+		D = self.D_M @ torch.transpose(self.D_M, 0, 1)
+		L = (self.L_M - torch.transpose(self.L_M, 0, 1))/2.0
+		zeta = torch.einsum('abm,mn,cdn->abcd',L,D,L) # zeta [alpha, beta, mu, nu] 
+		MdS = torch.einsum('abmn,zb,zm,zn->za',zeta,dE,dS,dE)
+		return MdS 
+
+	def forward(self, t, y):
+		P_E = self.P_E(y)
+		E = self.C(P_E) 
+
+		dE = torch.autograd.grad(E.sum(), y, create_graph=True)[0]
+		LdE = dE @ self.L.t()
+
+		S = y[:,-1]
+		dS = torch.autograd.grad(S.sum(), y, create_graph=True)[0]
+
+		MdS = self.friction_matvec(dE,dS)
+		output = LdE + MdS
+
+		self.friction_matrix(dE) 
+		return output 

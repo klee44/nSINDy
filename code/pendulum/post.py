@@ -99,3 +99,24 @@ for i in range(10):
 	plt.close(fig)
 	plt.close('all')
 	plt.clf()
+
+fix = plt.figure(figsize=(5.5,2.))
+
+target_id = 8
+
+plt.plot(t,data['test_data'][target_id,:,0],lw=3,color='r')
+plt.plot(t,test_sol[target_id,:,0],lw=2,color='deepskyblue',ls='--')
+
+plt.plot(t,data['test_data'][target_id,:,1],lw=3,color='b')
+plt.plot(t,test_sol[target_id,:,1],lw=2,color='yellow',ls='--')
+
+plt.margins(0,0.04)
+plt.title('Ideal pendulum')
+#plt.tight_layout()
+
+save_file = os.path.join(fig_save_path,"pendulum_example.png")
+plt.savefig(save_file)
+plt.close(fig)
+plt.close('all')
+plt.clf()
+

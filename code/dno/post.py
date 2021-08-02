@@ -99,3 +99,81 @@ for i in range(10):
 	plt.close(fig)
 	plt.close('all')
 	plt.clf()
+
+
+
+target_id = 7 
+
+fix = plt.figure(figsize=(5.5,2.))
+
+plt.plot(t,data['test_data'][target_id,:,0],lw=3,color='r')
+plt.plot(t,test_sol[target_id,:,0],lw=2,color='deepskyblue',ls='--')
+
+plt.plot(t,data['test_data'][target_id,:,1],lw=3,color='b')
+plt.plot(t,test_sol[target_id,:,1],lw=2,color='yellow',ls='--')
+
+plt.plot(t,data['test_data'][target_id,:,2],lw=3,color='g')
+plt.plot(t,test_sol[target_id,:,2],lw=2,color='mistyrose',ls='--')
+
+plt.margins(0,0.04)
+plt.title('Damped nonlinear oscillator')
+#plt.tight_layout()
+
+save_file = os.path.join(fig_save_path,"dno_example.png")
+plt.savefig(save_file)
+plt.close(fig)
+plt.close('all')
+plt.clf()
+
+# testing for longer period
+'''
+h_ref = 0.001 
+Time = 5.120*4 
+N_steps = int(np.floor(Time/h_ref)) + 1
+t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
+t = torch.tensor(t).squeeze()
+
+test_sol_longer = np.zeros((10,len(t),3))
+batch_idx = 50
+d = torch.tensor(data['test_data'][:10],requires_grad=True)
+pred_y = odeint(odefunc, d[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
+test_sol = pred_y.detach().numpy() 
+'''
+dxdt = odefunc(t,torch.tensor(test_sol[target_id,:,:],requires_grad=True))
+print((dxdt.detach().numpy()[:,2]<0).any())
+
+fix = plt.figure(figsize=(5.5,2.))
+
+plt.axhline(y=0.0, color='r', linestyle='-')
+plt.plot(t,dxdt.detach().numpy()[:,2],lw=1,color='deepskyblue',ls='-')
+
+plt.margins(0,0.04)
+plt.title('Damped nonlinear oscillator - nSINDy')
+#plt.tight_layout()
+
+save_file = os.path.join(fig_save_path,"dno_dSdt_example.png")
+plt.savefig(save_file)
+plt.close(fig)
+plt.close('all')
+plt.clf()
+
+fix = plt.figure(figsize=(5.5,2.))
+
+x_ref = data['test_data'][target_id,:,:]
+x_aprx= test_sol[target_id,:,:]
+
+E_ref = x_ref[:,1]**2/2.0 - 6.0*np.cos(x_ref[:,0]) + x_ref[:,2]
+E_aprx= x_aprx[:,1]**2/2.0 - 6.0*np.cos(x_aprx[:,0]) + x_aprx[:,2]
+
+plt.plot(t,E_ref,lw=3,color='r')
+plt.plot(t,E_aprx,lw=2,color='deepskyblue',ls='-')
+
+plt.margins(0,0.04)
+plt.title('Damped nonlinear oscillator - nSINDy')
+#plt.tight_layout()
+
+save_file = os.path.join(fig_save_path,"dno_E_example.png")
+plt.savefig(save_file)
+plt.close(fig)
+plt.close('all')
+plt.clf()

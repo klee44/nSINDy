@@ -64,12 +64,12 @@ t = torch.tensor(t).squeeze()
 
 
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_size=50)
-odefunc = ODEfunc(2, args.nlayer, args.nunit)
-#odefunc = ODEfuncPoly(2, 3)
+#odefunc = ODEfunc(2, args.nlayer, args.nunit)
+odefunc = ODEfuncPoly(2, 3)
 
 ckpt = torch.load(ckpt_path)
 odefunc.load_state_dict(ckpt['state_dict'])
-#print(odefunc.C.weight.detach().numpy())
+print(odefunc.C.weight.detach().numpy())
 
 odefunc.NFE = 0
 test_loss = 0
@@ -99,3 +99,24 @@ for i in range(10):
 	plt.close(fig)
 	plt.close('all')
 	plt.clf()
+
+fix = plt.figure(figsize=(5.5,2.))
+
+target_id = 3
+
+plt.plot(t,data['test_data'][target_id,:,0],lw=3,color='r')
+plt.plot(t,test_sol[target_id,:,0],lw=2,color='deepskyblue',ls='--')
+
+plt.plot(t,data['test_data'][target_id,:,1],lw=3,color='b')
+plt.plot(t,test_sol[target_id,:,1],lw=2,color='yellow',ls='--')
+
+plt.margins(0,0.04)
+plt.title('Hyperbolic')
+#plt.tight_layout()
+
+save_file = os.path.join(fig_save_path,"hyperbolic_example.png")
+plt.savefig(save_file)
+plt.close(fig)
+plt.close('all')
+plt.clf()
+

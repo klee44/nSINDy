@@ -14,7 +14,7 @@ from random import SystemRandom
 import matplotlib.pyplot as plt
 
 import lib.utils as utils
-from lib.odefunc import ODEfunc, ODEfuncPoly
+from lib.odefunc import ODEfunc, ODEfuncHNNTrig
 from lib.torchdiffeq import odeint as odeint
 #from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
@@ -65,7 +65,7 @@ t = torch.tensor(t).squeeze()
 
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data'],requires_grad=True),batch_size=50)
 #odefunc = ODEfunc(2, args.nlayer, args.nunit)
-odefunc = ODEfuncPoly(2, 3)
+odefunc = ODEfuncHNNTrig(2, 3)
 
 ckpt = torch.load(ckpt_path)
 odefunc.load_state_dict(ckpt['state_dict'])

@@ -14,7 +14,7 @@ from random import SystemRandom
 import matplotlib.pyplot as plt
 
 import lib.utils as utils
-from lib.odefunc import ODEfunc, ODEfuncPoly 
+from lib.odefunc import ODEfunc, ODEfuncPoly, ODEfuncHNNTrig
 from lib.torchdiffeq import odeint as odeint
 #from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
@@ -54,10 +54,10 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/mass_spring_torch.npz")
-h_ref = 0.1 
-Time = 3
-N_steps = int(np.floor(Time/h_ref)) + 1
+data = np.load("../data/pendulum_torch.npz")
+#h_ref = 0.1 
+Time = 9 
+N_steps = 15*Time+1#int(np.floor(Time/h_ref)) + 1
 t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
 t = torch.tensor(t).squeeze()
 
@@ -73,7 +73,7 @@ val_data = torch.utils.data.DataLoader(torch.tensor(data['val_data'], requires_g
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data'], requires_grad=True),batch_size=50)
 #val_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
 #test_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
-odefunc = ODEfuncPoly(2, 3)
+odefunc = ODEfuncHNNTrig(2, 3)
 
 parameters_to_prune = ((odefunc.C, "weight"),)
 
@@ -88,8 +88,8 @@ for itr in range(args.nepoch):
 	print('=={0:d}=='.format(itr))
 	for i in range(args.niterbatch):
 		optimizer.zero_grad()
-		batch_y0, batch_t, batch_y = utils.get_batch_traj(train_data,t,args.nMB)
-		#batch_y0, batch_t, batch_y = utils.get_batch(train_data,t,args.lMB,args.nMB)
+		#batch_y0, batch_t, batch_y = utils.get_batch_traj(train_data,t,args.nMB)
+		batch_y0, batch_t, batch_y = utils.get_batch(train_data,t,args.lMB,args.nMB)
 		pred_y = odeint(odefunc, batch_y0, batch_t, method=args.odeint).to(device).transpose(0,1)
 		loss = torch.mean(torch.abs(pred_y - batch_y))
 		l1_norm = 1e-4*torch.norm(odefunc.C.weight, p=1)

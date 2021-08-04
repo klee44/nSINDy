@@ -14,7 +14,7 @@ from random import SystemRandom
 import matplotlib.pyplot as plt
 
 import lib.utils as utils
-from lib.odefunc import ODEfunc, ODEfuncPoly, ODEfuncHNNTrig
+from lib.odefunc import ODEfunc, ODEfuncPolyTrig
 from lib.torchdiffeq import odeint as odeint
 #from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
@@ -73,7 +73,7 @@ val_data = torch.utils.data.DataLoader(torch.tensor(data['val_data'], requires_g
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data'], requires_grad=True),batch_size=50)
 #val_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
 #test_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
-odefunc = ODEfuncHNNTrig(2, 3)
+odefunc = ODEfuncPolyTrig(2, 3)
 
 parameters_to_prune = ((odefunc.C, "weight"),)
 

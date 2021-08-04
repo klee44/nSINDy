@@ -157,5 +157,63 @@ class ODEfuncGNN(nn.Module):
 		MdS = self.friction_matvec(dE,dS)
 		output = LdE + MdS
 
-		self.friction_matrix(dE) 
+		#self.friction_matrix(dE) 
+		self.MdE = self.friction_matvec(dE,dE)
+		#print(self.MdE)
+		return output 
+
+class ODEfunc_GENERIC(nn.Module):
+	def __init__(self, output_dim, D1, D2, lE, nE, lS, nS, device=torch.device("cpu")):
+		super(ODEfunc_GENERIC, self).__init__()
+		self.output_dim = output_dim
+
+		self.dimD = D1
+		self.dimD2 = D2
+
+		self.friction_D = nn.Parameter(torch.randn((self.dimD, self.dimD2), requires_grad=True))
+		self.friction_L = nn.Parameter(torch.randn((self.output_dim, self.output_dim, self.dimD), requires_grad=True)) # [alpha, beta, m] or [mu, nu, n]
+
+		self.poisson_xi = nn.Parameter(torch.randn((self.output_dim, self.output_dim, self.output_dim), requires_grad=True))
+
+		self.energy = utils.create_net(output_dim, 1, n_layers=lE, n_units=nE, nonlinear = nn.Tanh).to(device)
+		self.entropy = utils.create_net(output_dim, 1, n_layers=lS, n_units=nS, nonlinear = nn.Tanh).to(device)
+		
+		self.NFE = 0
+
+	def Poisson_matvec(self,dE,dS):
+		# zeta [alpha, beta, gamma]
+		xi = (self.poisson_xi - self.poisson_xi.permute(0,2,1) + self.poisson_xi.permute(1,2,0) -
+			self.poisson_xi.permute(1,0,2) + self.poisson_xi.permute(2,0,1) - self.poisson_xi.permute(2,1,0))/6.0
+		
+		# dE and dS [batch, alpha]
+		LdE = torch.einsum('abc, zb, zc -> za',xi,dE,dS)
+		return LdE 
+
+	def friction_matvec(self,dE,dS): 	
+		# D [m,n] L [alpha,beta,m] or [mu,nu,n] 
+		D = self.friction_D @ torch.transpose(self.friction_D, 0, 1)
+		L = (self.friction_L - torch.transpose(self.friction_L, 0, 1))/2.0
+		zeta = torch.einsum('abm,mn,cdn->abcd',L,D,L) # zeta [alpha, beta, mu, nu] 
+		MdS = torch.einsum('abmn,zb,zm,zn->za',zeta,dE,dS,dE)
+		return MdS 
+	
+	def get_penalty(self):
+		return self.LdS, self.MdE
+
+	def forward(self, t, y):
+		E = self.energy(y)
+		S = self.entropy(y)
+
+		dE = torch.autograd.grad(E.sum(), y, create_graph=True)[0]
+		dS = torch.autograd.grad(S.sum(), y, create_graph=True)[0] 
+
+		LdE = self.Poisson_matvec(dE,dS)
+		MdS = self.friction_matvec(dE,dS)
+		output = LdE  + MdS
+		#print(output.shape)
+		self.NFE = self.NFE + 1
+
+		# compute penalty
+		self.LdS = self.Poisson_matvec(dS,dS)
+		self.MdE = self.friction_matvec(dE,dE)
 		return output 

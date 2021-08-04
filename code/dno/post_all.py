@@ -60,7 +60,7 @@ print(ckpt_path, ckpt_path2)
 
 data = np.load("../data/dno_torch.npz")
 h_ref = 0.001 
-Time = 5.120 
+Time = 5.120*4 
 N_steps = int(np.floor(Time/h_ref)) + 1
 t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
 t = torch.tensor(t).squeeze()
@@ -118,7 +118,7 @@ E_ref = x_ref[:,1]**2/2.0 - 6.0*np.cos(x_ref[:,0]) + x_ref[:,2]
 E_aprx= x_aprx[:,1]**2/2.0 - 6.0*np.cos(x_aprx[:,0]) + x_aprx[:,2]
 E_aprx2= x_aprx2[:,1]**2/2.0 - 6.0*np.cos(x_aprx2[:,0]) + x_aprx2[:,2]
 
-plt.plot(t,E_ref,lw=2,color='k')
+#plt.plot(t,E_ref,lw=2,color='k')
 plt.plot(t,E_aprx,lw=2,color='b',ls='-')
 plt.plot(t,E_aprx2,lw=2,color='r',ls='--')
 

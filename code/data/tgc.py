@@ -45,9 +45,9 @@ np.random.seed(2)
 n = 4 
 
 # dataset 
-n_train = 80
-n_val = 16 
-n_test = 16
+n_train = 320
+n_val = 64 
+n_test = 64
 
 # simulate training trials 
 train_data = np.zeros((n_train, total_steps+1, n))

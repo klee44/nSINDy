@@ -100,7 +100,7 @@ for itr in range(args.nepoch):
 	scheduler.step()
 	
 	
-	if itr > 100:
+	if itr > 500:
 		with torch.no_grad():
 			val_loss = 0
 			print(odefunc.C.weight)

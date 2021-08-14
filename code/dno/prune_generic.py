@@ -14,7 +14,7 @@ from random import SystemRandom
 import matplotlib.pyplot as plt
 
 import lib.utils as utils
-from lib.odefunc import ODEfunc, ODEfuncPoly
+from lib.odefunc import ODEfunc, ODEfuncGNN
 from lib.torchdiffeq import odeint as odeint
 #from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
@@ -54,9 +54,9 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/lorenz_torch.npz")
-h_ref = 5e-4 
-Time = 2.56 
+data = np.load("../data/dno_torch_rk4.npz")
+h_ref = 0.001 
+Time = 5.120 
 N_steps = int(np.floor(Time/h_ref)) + 1
 t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
 t = torch.tensor(t).squeeze()
@@ -66,21 +66,17 @@ train_data = torch.utils.data.DataLoader(torch.tensor(data['train_data']),batch_
 val_data = torch.utils.data.DataLoader(torch.tensor(data['val_data']),batch_size=50)
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_size=50)
 '''
-train_data = torch.tensor(data['train_data'][:,:,:])
-#val_data = torch.tensor(data['val_data'])
-#test_data = torch.tensor(data['test_data'])
-val_data = torch.utils.data.DataLoader(torch.tensor(data['val_data']),batch_size=50)
-test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_size=50)
-#val_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
-#test_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
-odefunc = ODEfuncPoly(3, 3)
+train_data = torch.tensor(data['train_data'][:,:,:], requires_grad=True)
+val_data = torch.utils.data.DataLoader(torch.tensor(data['val_data'], requires_grad=True),batch_size=50)
+test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data'], requires_grad=True),batch_size=50)
+
+odefunc = ODEfuncGNN(3, 3, 1, 1)
 
 parameters_to_prune = ((odefunc.C, "weight"),)
 
 params = odefunc.parameters()
 optimizer = optim.Adamax(params, lr=args.lr)
-#scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9987)
-scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9998)
+scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9987)
 
 best_loss = 1e30
 frame = 0 
@@ -101,35 +97,34 @@ for itr in range(args.nepoch):
 	scheduler.step()
 	
 	
-	print(odefunc.C.weight)
-	if itr > 19000:
-		with torch.no_grad():
-			val_loss = 0
+	if itr > 50:
+		val_loss = 0
+		print(odefunc.C.weight)
 			
-			for d in val_data:
-				pred_y = odeint(odefunc, d[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
-				val_loss += torch.mean(torch.abs(pred_y - d)).item()
-			print('val loss', val_loss)
-				
-			if best_loss > val_loss:
-				print('saving...', val_loss)
-				torch.save({'state_dict': odefunc.state_dict(),}, ckpt_path)
-				best_loss = val_loss 
+		for d in val_data:
+			pred_y = odeint(odefunc, d[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
+			val_loss += torch.mean(torch.abs(pred_y - d)).item()
+		print('val loss', val_loss)
+			
+		if best_loss > val_loss:
+			print('saving...', val_loss)
+			torch.save({'state_dict': odefunc.state_dict(),}, ckpt_path)
+			best_loss = val_loss 
 
-			plt.figure()
-			plt.tight_layout()
-			save_file = os.path.join(fig_save_path,"image_{:03d}.png".format(frame))
-			fig = plt.figure(figsize=(12,4))
-			axes = []
-			for i in range(3):
-				axes.append(fig.add_subplot(1,3,i+1))
-				axes[i].plot(t,d[0,:,i].detach().numpy(),lw=2,color='k')
-				axes[i].plot(t,pred_y.detach().numpy()[0,:,i],lw=2,color='c',ls='--')
-				plt.savefig(save_file)
-			plt.close(fig)
-			plt.close('all')
-			plt.clf()
-			frame += 1
+		plt.figure()
+		plt.tight_layout()
+		save_file = os.path.join(fig_save_path,"image_{:03d}.png".format(frame))
+		fig = plt.figure(figsize=(8,4))
+		axes = []
+		for i in range(2):
+			axes.append(fig.add_subplot(1,2,i+1))
+			axes[i].plot(t,d[0,:,i].detach().numpy(),lw=2,color='k')
+			axes[i].plot(t,pred_y.detach().numpy()[0,:,i],lw=2,color='c',ls='--')
+			plt.savefig(save_file)
+		plt.close(fig)
+		plt.close('all')
+		plt.clf()
+		frame += 1
 
 
 ckpt = torch.load(ckpt_path)
@@ -151,8 +146,8 @@ print('test loss', test_loss)
 
 fig = plt.figure(figsize=(12,4))
 axes = []
-for i in range(3):
-	axes.append(fig.add_subplot(1,3,i+1))
+for i in range(2):
+	axes.append(fig.add_subplot(1,2,i+1))
 	axes[i].plot(t,data['test_data'][0,:,i],lw=3,color='k')
 	axes[i].plot(t,test_sol[0,:,i],lw=2,color='c',ls='--')
 

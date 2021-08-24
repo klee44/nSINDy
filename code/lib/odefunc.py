@@ -124,7 +124,7 @@ class ODEfuncGNN(nn.Module):
 		self.P_E = TotalDegreeTrig(dim,order)
 		self.C = nn.Linear(self.P_E.nterms,1,bias=False)
 
-		self.L = np.zeros((3,3))
+		self.L = np.zeros((dim,dim))
 		self.L[0,1], self.L[1,0] = 1, -1
 		self.L = torch.tensor(self.L).to(device)
 
@@ -158,7 +158,7 @@ class ODEfuncGNN(nn.Module):
 		output = LdE + MdS
 
 		#self.friction_matrix(dE) 
-		self.MdE = self.friction_matvec(dE,dE)
+		#self.MdE = self.friction_matvec(dE,dE)
 		#print(self.MdE)
 		return output 
 

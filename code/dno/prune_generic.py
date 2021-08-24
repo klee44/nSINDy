@@ -31,6 +31,9 @@ parser.add_argument('--niterbatch', type=int, default=100, help='max epochs')
 parser.add_argument('--nlayer', type=int, default=4, help='max epochs')
 parser.add_argument('--nunit', type=int, default=25, help='max epochs')
 
+parser.add_argument('--d1', type=int, default=1, help='max epochs')
+parser.add_argument('--d2', type=int, default=1, help='max epochs')
+
 parser.add_argument('--lMB', type=int, default=100, help='length of seq in each MB')
 parser.add_argument('--nMB', type=int, default=40, help='length of seq in each MB')
 
@@ -54,7 +57,7 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/dno_torch_rk4.npz")
+data = np.load("../data/dno_torch.npz")
 h_ref = 0.001 
 Time = 5.120 
 N_steps = int(np.floor(Time/h_ref)) + 1
@@ -70,7 +73,7 @@ train_data = torch.tensor(data['train_data'][:,:,:], requires_grad=True)
 val_data = torch.utils.data.DataLoader(torch.tensor(data['val_data'], requires_grad=True),batch_size=50)
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data'], requires_grad=True),batch_size=50)
 
-odefunc = ODEfuncGNN(3, 3, 1, 1)
+odefunc = ODEfuncGNN(3, 3, args.d1, args.d2)
 
 parameters_to_prune = ((odefunc.C, "weight"),)
 
@@ -97,9 +100,9 @@ for itr in range(args.nepoch):
 	scheduler.step()
 	
 	
+	print(odefunc.C.weight)
 	if itr > 50:
 		val_loss = 0
-		print(odefunc.C.weight)
 			
 		for d in val_data:
 			pred_y = odeint(odefunc, d[:,0,:], t, method=args.odeint).to(device).transpose(0,1)

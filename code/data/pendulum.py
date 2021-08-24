@@ -13,7 +13,8 @@ device = torch.device('cuda:' + str(args.gpu) if torch.cuda.is_available() else 
 # adjustable parameters
 #dt = 1/15       # set to 5e-4 for Lorenz
 noise = 0.      # for study of noisy measurements, we use noise=0.01, 0.02; otherwise we leave it as 0.
-total_steps = 15*9 
+#total_steps = 15*9 # training data 
+total_steps = 15*100 # for testing only
 #t = torch.linspace(0, (total_steps)*dt, total_steps+1).to(device)
 t = torch.linspace(0, 9, total_steps+1).to(device)
 
@@ -70,4 +71,4 @@ train_data += noise*train_data.std(1).mean(0)*np.random.randn(*train_data.shape)
 val_data += noise*val_data.std(1).mean(0)*np.random.randn(*val_data.shape)
 test_data += noise*test_data.std(1).mean(0)*np.random.randn(*test_data.shape)
 
-np.savez('pendulum_torch.npz', train_data=train_data,val_data=val_data,test_data=test_data)
+np.savez('pendulum_torch_timeunit100.npz', train_data=train_data,val_data=val_data,test_data=test_data)

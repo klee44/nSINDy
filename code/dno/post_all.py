@@ -59,8 +59,10 @@ ckpt_path2 = os.path.join(save_path, "experiment_" + str(experimentID2) + '.ckpt
 print(ckpt_path, ckpt_path2)
 
 data = np.load("../data/dno_torch.npz")
+#data = np.load("../data/dno_torch_timeunit100.npz")
 h_ref = 0.001 
-Time = 5.120*4 
+Time = 5.120 
+#Time = 102.4
 N_steps = int(np.floor(Time/h_ref)) + 1
 t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
 t = torch.tensor(t).squeeze()
@@ -102,7 +104,8 @@ plt.margins(0,0.04)
 plt.title('Damped nonlinear oscillator - dSdt')
 #plt.tight_layout()
 
-save_file = os.path.join(fig_save_path,"dno_dSdt_all_example.png")
+save_file = os.path.join(fig_save_path,"dno_dSdt_all_example_tu100.png")
+#save_file = os.path.join(fig_save_path,"dno_dSdt_all_example.png")
 plt.savefig(save_file)
 plt.close(fig)
 plt.close('all')
@@ -118,7 +121,7 @@ E_ref = x_ref[:,1]**2/2.0 - 6.0*np.cos(x_ref[:,0]) + x_ref[:,2]
 E_aprx= x_aprx[:,1]**2/2.0 - 6.0*np.cos(x_aprx[:,0]) + x_aprx[:,2]
 E_aprx2= x_aprx2[:,1]**2/2.0 - 6.0*np.cos(x_aprx2[:,0]) + x_aprx2[:,2]
 
-#plt.plot(t,E_ref,lw=2,color='k')
+plt.plot(t,E_ref,lw=2,color='k')
 plt.plot(t,E_aprx,lw=2,color='b',ls='-')
 plt.plot(t,E_aprx2,lw=2,color='r',ls='--')
 
@@ -126,7 +129,8 @@ plt.margins(0,0.04)
 plt.title('Damped nonlinear oscillator - E')
 #plt.tight_layout()
 
-save_file = os.path.join(fig_save_path,"dno_E_all_example.png")
+save_file = os.path.join(fig_save_path,"dno_E_all_example_tu100.png")
+#save_file = os.path.join(fig_save_path,"dno_E_all_example.png")
 plt.savefig(save_file)
 plt.close(fig)
 plt.close('all')

@@ -100,10 +100,10 @@ for itr in range(args.nepoch):
 	scheduler.step()
 	
 	
+	print(odefunc.C.weight)
 	with torch.no_grad():
 		if itr > 50:
 			val_loss = 0
-			print(odefunc.C.weight)
 			
 			for d in val_data:
 				pred_y = odeint(odefunc, d[:,0,:], t, method=args.odeint).to(device).transpose(0,1)

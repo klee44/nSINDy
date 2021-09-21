@@ -56,6 +56,8 @@ n_train = 800
 n_val = 160
 n_test = 160
 
+odeint_method = 'rk4'
+
 # simulate training trials 
 train_data = np.zeros((n_train, total_steps+1, n))
 print('generating training trials ...')
@@ -65,7 +67,7 @@ for i in range(n_train):
 	x_init = np.concatenate((x_init / np.sqrt((x_init**2).sum()) * radius, [S1_init, S2_init]))
 	#x_init = [1,2,S1_init,S2_init]
 	x_init = torch.tensor(x_init).to(device).unsqueeze(0)
-	sol = odeint(rhs_torch,x_init,t,method='dopri5').to(device).squeeze().detach().numpy()
+	sol = odeint(rhs_torch,x_init,t,method=odeint_method).to(device).squeeze().detach().numpy()
 	train_data[i, :, :] = sol
 	'''
 	import matplotlib.pyplot as plt
@@ -82,7 +84,7 @@ for i in range(n_val):
 	radius = np.random.rand() + .5
 	x_init = np.concatenate((x_init / np.sqrt((x_init**2).sum()) * radius, [S1_init, S2_init]))
 	x_init = torch.tensor(x_init).to(device).unsqueeze(0)
-	sol = odeint(rhs_torch,x_init,t,method='dopri5').to(device).squeeze().detach().numpy()
+	sol = odeint(rhs_torch,x_init,t,method=odeint_method).to(device).squeeze().detach().numpy()
 	val_data[i, :, :] = sol
     
 # simulate test trials
@@ -93,7 +95,7 @@ for i in range(n_test):
 	radius = np.random.rand() + .5
 	x_init = np.concatenate((x_init / np.sqrt((x_init**2).sum()) * radius, [S1_init, S2_init]))
 	x_init = torch.tensor(x_init).to(device).unsqueeze(0)
-	sol = odeint(rhs_torch,x_init,t,method='dopri5').to(device).squeeze().detach().numpy()
+	sol = odeint(rhs_torch,x_init,t,method=odeint_method).to(device).squeeze().detach().numpy()
 	test_data[i, :, :] = sol
     
 # add noise
@@ -101,4 +103,4 @@ train_data += noise*train_data.std(1).mean(0)*np.random.randn(*train_data.shape)
 val_data += noise*val_data.std(1).mean(0)*np.random.randn(*val_data.shape)
 test_data += noise*test_data.std(1).mean(0)*np.random.randn(*test_data.shape)
 
-np.savez('tgc_torch_sindy.npz', train_data=train_data,val_data=val_data,test_data=test_data)
+np.savez('tgc_torch_sindy_rk4.npz', train_data=train_data,val_data=val_data,test_data=test_data)

@@ -13,7 +13,8 @@ device = torch.device('cuda:' + str(args.gpu) if torch.cuda.is_available() else 
 # adjustable parameters
 dt = 0.001       # set to 5e-4 for Lorenz
 noise = 0.      # for study of noisy measurements, we use noise=0.01, 0.02; otherwise we leave it as 0.
-n_forward = 5*4
+#n_forward = 5*4 # torch_longer
+n_forward = 5
 total_steps = 1024 * n_forward
 t = torch.linspace(0, (total_steps)*dt, total_steps+1).to(device)
 
@@ -44,10 +45,18 @@ S2_init = 1.5*np.log(2.0)+np.log(2-1)+Const
 np.random.seed(2)
 n = 4 
 
-# dataset 
+# dataset -- GENERIC 
+'''
 n_train = 320
 n_val = 64 
 n_test = 64
+'''
+# dataset -- SINDy 
+n_train = 800
+n_val = 160
+n_test = 160
+
+odeint_method = 'rk4'
 
 # simulate training trials 
 train_data = np.zeros((n_train, total_steps+1, n))
@@ -58,7 +67,7 @@ for i in range(n_train):
 	x_init = np.concatenate((x_init / np.sqrt((x_init**2).sum()) * radius, [S1_init, S2_init]))
 	#x_init = [1,2,S1_init,S2_init]
 	x_init = torch.tensor(x_init).to(device).unsqueeze(0)
-	sol = odeint(rhs_torch,x_init,t,method='dopri5').to(device).squeeze().detach().numpy()
+	sol = odeint(rhs_torch,x_init,t,method=odeint_method).to(device).squeeze().detach().numpy()
 	train_data[i, :, :] = sol
 	'''
 	import matplotlib.pyplot as plt
@@ -75,7 +84,7 @@ for i in range(n_val):
 	radius = np.random.rand() + .5
 	x_init = np.concatenate((x_init / np.sqrt((x_init**2).sum()) * radius, [S1_init, S2_init]))
 	x_init = torch.tensor(x_init).to(device).unsqueeze(0)
-	sol = odeint(rhs_torch,x_init,t,method='dopri5').to(device).squeeze().detach().numpy()
+	sol = odeint(rhs_torch,x_init,t,method=odeint_method).to(device).squeeze().detach().numpy()
 	val_data[i, :, :] = sol
     
 # simulate test trials
@@ -86,7 +95,7 @@ for i in range(n_test):
 	radius = np.random.rand() + .5
 	x_init = np.concatenate((x_init / np.sqrt((x_init**2).sum()) * radius, [S1_init, S2_init]))
 	x_init = torch.tensor(x_init).to(device).unsqueeze(0)
-	sol = odeint(rhs_torch,x_init,t,method='dopri5').to(device).squeeze().detach().numpy()
+	sol = odeint(rhs_torch,x_init,t,method=odeint_method).to(device).squeeze().detach().numpy()
 	test_data[i, :, :] = sol
     
 # add noise
@@ -94,4 +103,4 @@ train_data += noise*train_data.std(1).mean(0)*np.random.randn(*train_data.shape)
 val_data += noise*val_data.std(1).mean(0)*np.random.randn(*val_data.shape)
 test_data += noise*test_data.std(1).mean(0)*np.random.randn(*test_data.shape)
 
-np.savez('tgc_longer_torch.npz', train_data=train_data,val_data=val_data,test_data=test_data)
+np.savez('tgc_torch_sindy_rk4.npz', train_data=train_data,val_data=val_data,test_data=test_data)

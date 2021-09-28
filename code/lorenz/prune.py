@@ -98,11 +98,12 @@ for itr in range(args.nepoch):
 		loss.backward()
 		optimizer.step()
 		prune.global_unstructured(parameters_to_prune, pruning_method=ThresholdPruning, threshold=1e-6)
-	scheduler.step()
+	if itr < 10000:
+		scheduler.step()
 	
 	
 	print(odefunc.C.weight)
-	if itr > 19000:
+	if itr > 29000:
 		with torch.no_grad():
 			val_loss = 0
 			

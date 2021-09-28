@@ -54,7 +54,8 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/dno_torch.npz")
+#data = np.load("../data/dno_torch.npz")
+data = np.load("../data/dno_torch_lesslessdamp_rk4.npz")
 h_ref = 0.001 
 Time = 5.120 
 N_steps = int(np.floor(Time/h_ref)) + 1

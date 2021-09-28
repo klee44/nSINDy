@@ -11,16 +11,16 @@ from torchdiffeq import odeint
 device = torch.device('cuda:' + str(args.gpu) if torch.cuda.is_available() else 'cpu')
 
 # adjustable parameters
-#dt = 1/15       # set to 5e-4 for Lorenz
+dt = .01       # set to 5e-4 for Lorenz
 noise = 0.      # for study of noisy measurements, we use noise=0.01, 0.02; otherwise we leave it as 0.
 #total_steps = 15*9 # training data 
-total_steps = 15*100 # for testing only
-#t = torch.linspace(0, (total_steps)*dt, total_steps+1).to(device)
-t = torch.linspace(0, 9, total_steps+1).to(device)
+total_steps = 1024 # for testing only
+t = torch.linspace(0, (total_steps)*dt, total_steps+1).to(device)
+#t = torch.linspace(0, 9, total_steps+1).to(device)
 
 # system
 def rhs_torch(t,x):
-	return torch.cat( (x[:,1], -6.0*np.sin(x[:,0])), axis=-1)
+	return torch.cat( (x[:,1], x[:,0]-x[:,0]**3-0.3*x[:,1]+0.2*torch.sin(1.2*t)), axis=-1)
 
 
 # simulation parameters
@@ -71,4 +71,4 @@ train_data += noise*train_data.std(1).mean(0)*np.random.randn(*train_data.shape)
 val_data += noise*val_data.std(1).mean(0)*np.random.randn(*val_data.shape)
 test_data += noise*test_data.std(1).mean(0)*np.random.randn(*test_data.shape)
 
-np.savez('pendulum_torch_timeunit100.npz', train_data=train_data,val_data=val_data,test_data=test_data)
+np.savez('duffing_nonchaotic_torch.npz', train_data=train_data,val_data=val_data,test_data=test_data)

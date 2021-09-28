@@ -116,15 +116,37 @@ class ODEfuncHNNTrig(nn.Module):
 		output = dH @ self.L.t()
 		return output 
 
+class ODEfuncPortHNN(nn.Module):
+	def __init__(self, dim, order, device = torch.device("cpu")):
+		super(ODEfuncPortHNN, self).__init__()
+		self.NFE = 0
+		self.TP = TotalDegree(dim,order)
+		self.C = nn.Linear(self.TP.nterms,1,bias=False)
+		self.L = np.zeros((2,2))
+		self.L[0,1], self.L[1,0] = 1, -1
+		self.L = torch.tensor(self.L).to(device)
+		self.N = nn.Parameter(torch.randn((1), requires_grad=True))
+
+	def forward(self, t, y):
+		P = self.TP(y)
+		H = self.C(P) 
+
+		dH = torch.autograd.grad(H.sum(), y, create_graph=True)[0]
+		output = dH @ self.L.t()  
+		#output[:,1] = output[:,1] + self.N*dH[:,1] + 0.2*torch.sin(1.2*t)
+		output[:,1] = output[:,1] + self.N*dH[:,1] + 0.39*torch.sin(1.4*t)
+		return output 
+
 class ODEfuncGNN(nn.Module):
 	def __init__(self, dim, order, D1, D2, device = torch.device("cpu")):
 		super(ODEfuncGNN, self).__init__()
 		self.NFE = 0
 
 		self.P_E = TotalDegreeTrig(dim,order)
+		#self.P_E = TotalDegree(dim,order)
 		self.C = nn.Linear(self.P_E.nterms,1,bias=False)
 
-		self.L = np.zeros((3,3))
+		self.L = np.zeros((dim,dim))
 		self.L[0,1], self.L[1,0] = 1, -1
 		self.L = torch.tensor(self.L).to(device)
 
@@ -144,6 +166,20 @@ class ODEfuncGNN(nn.Module):
 		MdS = torch.einsum('abmn,zb,zm,zn->za',zeta,dE,dS,dE)
 		return MdS 
 
+	def dEdt(self,dE,dS):
+		D = self.D_M @ torch.transpose(self.D_M, 0, 1)
+		L = (self.L_M - torch.transpose(self.L_M, 0, 1))/2.0
+		zeta = torch.einsum('abm,mn,cdn->abcd',L,D,L) # zeta [alpha, beta, mu, nu] 
+		MdS = torch.einsum('abmn,zb,zm,zn->za',zeta,dE,dS,dE)
+		self.dEMdS = torch.einsum('za,za->z',dE,MdS)
+
+	def dSdt(self,dE,dS):
+		D = self.D_M @ torch.transpose(self.D_M, 0, 1)
+		L = (self.L_M - torch.transpose(self.L_M, 0, 1))/2.0
+		zeta = torch.einsum('abm,mn,cdn->abcd',L,D,L) # zeta [alpha, beta, mu, nu] 
+		MdS = torch.einsum('abmn,zb,zm,zn->za',zeta,dE,dS,dE)
+		self.dSMdS = torch.einsum('za,za->z',dS,MdS)
+
 	def forward(self, t, y):
 		P_E = self.P_E(y)
 		E = self.C(P_E) 
@@ -158,8 +194,11 @@ class ODEfuncGNN(nn.Module):
 		output = LdE + MdS
 
 		#self.friction_matrix(dE) 
-		self.MdE = self.friction_matvec(dE,dE)
+		#self.MdE = self.friction_matvec(dE,dE)
 		#print(self.MdE)
+		# post proc
+		self.dEdt(dE,dS)
+		self.dSdt(dE,dS)
 		return output 
 
 class ODEfunc_GENERIC(nn.Module):

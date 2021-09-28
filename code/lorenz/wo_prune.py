@@ -75,7 +75,8 @@ odefunc = ODEfuncPoly(3, 3)
 
 params = odefunc.parameters()
 optimizer = optim.Adamax(params, lr=args.lr)
-scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9987)
+#scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9987)
+scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9998)
 
 best_loss = 1e30
 frame = 0 
@@ -94,11 +95,14 @@ for itr in range(args.nepoch):
 		optimizer.step()
 	scheduler.step()
 	
-	if itr > 100:
-	
+	if itr < 10000:
+		scheduler.step()
+
+	print(odefunc.C.weight)
+	if itr > 39000:
 		with torch.no_grad():
 			val_loss = 0
-			print(odefunc.C.weight)
+			
 			
 			for d in val_data:
 				pred_y = odeint(odefunc, d[:,0,:], t, method=args.odeint).to(device).transpose(0,1)

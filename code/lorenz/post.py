@@ -54,9 +54,11 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/lorenz_torch.npz")
+#data = np.load("../data/lorenz_torch.npz")
+data = np.load("../data/lorenz_torch_timeunit30.npz")
 h_ref = 5e-4 
-Time = 2.56 
+#Time = 2.56 
+Time = 2.56 * 6
 N_steps = int(np.floor(Time/h_ref)) + 1
 t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
 t = torch.tensor(t).squeeze()
@@ -102,7 +104,7 @@ for i in range(10):
 
 fix = plt.figure(figsize=(5.5,2.))
 
-target_id = 8 
+target_id = 3 
 
 
 plt.plot(t,data['test_data'][target_id,:,0],lw=3,color='r')
@@ -115,10 +117,11 @@ plt.plot(t,data['test_data'][target_id,:,2],lw=3,color='g')
 plt.plot(t,test_sol[target_id,:,2],lw=2,color='mistyrose',ls='--')
 
 plt.margins(0,0.04)
-plt.title('Lorenz')
+plt.title('Lorenz - longer simulation')
 #plt.tight_layout()
 
-save_file = os.path.join(fig_save_path,"lorenz_example.png")
+#save_file = os.path.join(fig_save_path,"lorenz_example.png")
+save_file = os.path.join(fig_save_path,"lorenz_example_timeunit30.png")
 plt.savefig(save_file)
 plt.close(fig)
 plt.close('all')

@@ -18,13 +18,18 @@ total_steps = 1024 * n_forward
 t = torch.linspace(0, (total_steps)*dt, total_steps+1).to(device)
 
 # system
+# https://people.sc.fsu.edu/~jburkardt/py_src/brusselator_ode/brusselator_ode.py
+# a, b = 1.0, 3.0
+# https://arxiv.org/pdf/1904.06474.pdf
+# 
+a, b, e = 1.0, 3.5, 100.0
 def brusselator_rhs_torch(t,x):
-	return torch.cat( (1.0 + x[:,0]**2*x[:,1] - (3.0+1.0)*x[:,0], 3.0*x[:,0] - x[:,0]**2*x[:,1]), axis=-1)
+	return torch.cat( (a + x[:,0]**2*x[:,1] - (x[:,2]+1.0)*x[:,0], x[:,2]*x[:,0] - x[:,0]**2*x[:,1], (b - x[:,2])*e - x[:,0]*x[:,2]), axis=-1)
 
 
 # simulation parameters
-np.random.seed(2)
-n = 2
+np.random.seed(3)
+n = 3
 
 # dataset 
 n_train = 800
@@ -36,6 +41,7 @@ train_data = np.zeros((n_train, total_steps+1, n))
 print('generating training trials ...')
 for i in range(n_train):
 	x_init = torch.tensor(np.random.uniform(0.0, 6.0, n)).to(device).unsqueeze(0)
+	#x_init = torch.tensor([[1.2,3.1,3]])
 	sol = odeint(brusselator_rhs_torch,x_init,t,method='dopri5').to(device).squeeze().detach().numpy()
 	train_data[i, :, :] = sol
 	'''
@@ -44,6 +50,7 @@ for i in range(n_train):
 	plt.plot(sol[:,1],'b')
 	plt.show()
 	'''
+
 # simulate validation trials 
 val_data = np.zeros((n_val, total_steps+1, n))
 print('generating validation trials ...')

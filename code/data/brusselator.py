@@ -40,7 +40,7 @@ n_test = 160
 train_data = np.zeros((n_train, total_steps+1, n))
 print('generating training trials ...')
 for i in range(n_train):
-	x_init = torch.tensor(np.random.uniform(0.0, 6.0, n)).to(device).unsqueeze(0)
+	x_init = torch.tensor(np.random.uniform(1.0, 4.0, n)).to(device).unsqueeze(0)
 	#x_init = torch.tensor([[1.2,3.1,3]])
 	sol = odeint(brusselator_rhs_torch,x_init,t,method='dopri5').to(device).squeeze().detach().numpy()
 	train_data[i, :, :] = sol
@@ -55,7 +55,7 @@ for i in range(n_train):
 val_data = np.zeros((n_val, total_steps+1, n))
 print('generating validation trials ...')
 for i in range(n_val):
-	x_init = torch.tensor(np.random.uniform(0.0, 6.0, n)).to(device).unsqueeze(0)
+	x_init = torch.tensor(np.random.uniform(1.0, 4.0, n)).to(device).unsqueeze(0)
 	sol = odeint(brusselator_rhs_torch,x_init,t,method='dopri5').to(device).squeeze().detach().numpy()
 	val_data[i, :, :] = sol
     
@@ -63,7 +63,7 @@ for i in range(n_val):
 test_data = np.zeros((n_test, total_steps+1, n))
 print('generating testing trials ...')
 for i in range(n_test):
-	x_init = torch.tensor(np.random.uniform(0.0, 6.0, n)).to(device).unsqueeze(0)
+	x_init = torch.tensor(np.random.uniform(1.0, 4.0, n)).to(device).unsqueeze(0)
 	sol = odeint(brusselator_rhs_torch,x_init,t,method='dopri5').to(device).squeeze().detach().numpy()
 	test_data[i, :, :] = sol
     

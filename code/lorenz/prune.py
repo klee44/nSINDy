@@ -76,6 +76,7 @@ test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_si
 odefunc = ODEfuncPoly(3, 3)
 
 parameters_to_prune = ((odefunc.C, "weight"),)
+print(odefunc.C.weight)
 
 params = odefunc.parameters()
 optimizer = optim.Adamax(params, lr=args.lr)

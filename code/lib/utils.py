@@ -39,7 +39,7 @@ def init_network_weights_orthogonal(net):
 	for m in net.modules():
 		if isinstance(m, nn.Linear):
 			nn.init.orthogonal_(m.weight)
-			nn.init.constant_(m.bias, val=0)
+			#nn.init.constant_(m.bias, val=0)
 
 def create_net(n_inputs, n_outputs, n_layers = 1, 
 	n_units = 100, nonlinear = nn.Tanh):
@@ -55,12 +55,16 @@ def create_net(n_inputs, n_outputs, n_layers = 1,
 		layers.append(nn.Linear(n_units, n_outputs))
 	return nn.Sequential(*layers)
 
-def get_batch(data, t, batch_len=60, batch_size=100, device = torch.device("cpu")):
+def get_batch(data, t, batch_len=60, batch_size=100, device = torch.device("cpu"), reverse=False):
 	r = torch.from_numpy(np.random.choice(np.arange(len(data),dtype=np.int64),batch_size, replace=False))
 	s = torch.from_numpy(np.random.choice(np.arange(len(t) - batch_len, dtype=np.int64), batch_size, replace=False))
 	batch_y0 = data[r,s,:]  # (M, D)
 	batch_t = t[:batch_len]  # (T)
 	batch_y = torch.stack([data[r,s + i,:] for i in range(batch_len)], dim=1)  # (T, M, D)
+	if reverse: 
+		batch_y0 = batch_y[:,-1,:]
+		batch_t = batch_t.flip([0])
+		batch_y = batch_y.flip([1])
 	return batch_y0.to(device), batch_t.to(device), batch_y.to(device)
 
 def get_batch_t(data, t, batch_len=60, batch_size=100, device = torch.device("cpu")):

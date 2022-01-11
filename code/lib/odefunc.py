@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 import lib.utils as utils
 from lib.utils import TensorProduct, Taylor, TotalDegree, TotalDegreeTrig
@@ -61,11 +62,36 @@ class ODEfuncPoly(nn.Module):
 		#self.TP = Taylor(dim,order)
 		#self.C = nn.Parameter(torch.randn((self.TP.nterms, dim), requires_grad=True))
 		self.C = nn.Linear(self.TP.nterms,dim,bias=False)
+		#utils.init_network_weights_orthogonal(self.C)
+		nn.init.zeros_(self.C.weight)
 
 	def forward(self, t, y):
 		P = self.TP(y)
 		#output = torch.einsum('ab,za->zb',self.C,P)
 		output = self.C(P)
+		return output 
+
+class ODEfuncPolyGS(nn.Module):
+	def __init__(self, dim, order, device = torch.device("cpu")):
+		super(ODEfuncPolyGS, self).__init__()
+		self.NFE = 0
+		self.TP = TotalDegree(dim,order)
+		#self.C = torch.randn((self.TP.nterms, dim), requires_grad=False)
+		self.C = nn.Parameter(torch.randn((self.TP.nterms, dim), requires_grad=True))
+		nn.init.kaiming_uniform_(self.C, mode='fan_out',a=np.sqrt(5))
+		logits_init = .0*torch.ones((self.TP.nterms,dim,1), requires_grad=True)
+		self.logits = nn.Parameter(logits_init)
+		self.odd = F.sigmoid(self.logits)
+		self.mask = F.gumbel_softmax(torch.cat((1-self.odd, self.odd),axis=-1), tau=1, hard=True)[:,:,1]
+
+	def update_mask(self):
+		self.odd = F.sigmoid(self.logits)
+		self.mask = F.gumbel_softmax(torch.cat((1-self.odd, self.odd),axis=-1), tau=.1, hard=False)[:,:,1]
+
+	def forward(self, t, y):
+		P = self.TP(y)
+		output = torch.einsum('ab,za->zb',torch.mul(self.mask,self.C),P)
+		#output = torch.einsum('ab,za->zb',self.C,P)
 		return output 
 
 class ODEfuncPolyTrig(nn.Module):
@@ -235,6 +261,18 @@ class ODEfunc_GENERIC(nn.Module):
 		zeta = torch.einsum('abm,mn,cdn->abcd',L,D,L) # zeta [alpha, beta, mu, nu] 
 		MdS = torch.einsum('abmn,zb,zm,zn->za',zeta,dE,dS,dE)
 		return MdS 
+
+	def get_dSdt(self,dS,dE):
+		xi = (self.poisson_xi - self.poisson_xi.permute(0,2,1) + self.poisson_xi.permute(1,2,0) -
+			self.poisson_xi.permute(1,0,2) + self.poisson_xi.permute(2,0,1) - self.poisson_xi.permute(2,1,0))/6.0
+		dSLdE = torch.einsum('abc, za, zb, zc -> z',xi,dS,dE,dS)
+
+		D = self.friction_D @ torch.transpose(self.friction_D, 0, 1)
+		L = (self.friction_L - torch.transpose(self.friction_L, 0, 1))/2.0
+		zeta = torch.einsum('abm,mn,cdn->abcd',L,D,L) # zeta [alpha, beta, mu, nu] 
+		dSMdS = torch.einsum('abmn,za,zb,zm,zn->z',zeta,dS,dE,dS,dE)
+
+		return dSLdE + dSMdS
 	
 	def get_penalty(self):
 		return self.LdS, self.MdE
@@ -255,4 +293,5 @@ class ODEfunc_GENERIC(nn.Module):
 		# compute penalty
 		self.LdS = self.Poisson_matvec(dS,dS)
 		self.MdE = self.friction_matvec(dE,dE)
+		self.dSdt = self.get_dSdt(dS,dE)
 		return output 

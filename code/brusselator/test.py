@@ -72,7 +72,7 @@ val_data = torch.utils.data.DataLoader(torch.tensor(data['val_data']),batch_size
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_size=50)
 #val_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
 #test_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
-odefunc = ODEfunc(2, args.nlayer, args.nunit)
+odefunc = ODEfunc(3, args.nlayer, args.nunit)
 
 params = odefunc.parameters()
 optimizer = optim.Adamax(params, lr=args.lr)

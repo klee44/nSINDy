@@ -39,6 +39,13 @@ for i in range(n_train):
 	x_init = sol.y[:, -1].T
 	sol = sp.integrate.solve_ivp(lambda _, x: lorenz_rhs(x), [0, total_steps*dt], x_init, t_eval=t)
 	train_data[i, :, :] = sol.y.T
+	'''
+	import matplotlib.pyplot as plt
+	fig = plt.figure(figsize=(4,4))
+	ax = fig.add_subplot(projection='3d')
+	ax.plot(train_data[i,:,0],train_data[i,:,1],train_data[i,:,2])
+	plt.show()
+	'''
 
 # simulate validation trials 
 val_data = np.zeros((n_val, total_steps+1, n))

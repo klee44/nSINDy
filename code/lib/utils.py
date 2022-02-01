@@ -1,8 +1,3 @@
-###########################
-# Latent ODEs for Irregularly-Sampled Time Series
-# Author: Yulia Rubanova
-###########################
-
 import os
 import logging
 import pickle

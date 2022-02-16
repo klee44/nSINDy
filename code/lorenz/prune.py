@@ -92,7 +92,8 @@ for itr in range(args.nepoch):
 		optimizer.zero_grad()
 		batch_y0, batch_t, batch_y = utils.get_batch(train_data,t,args.lMB,args.nMB)
 		pred_y = odeint(odefunc, batch_y0, batch_t, method=args.odeint).to(device).transpose(0,1)
-		loss = torch.mean(torch.abs(pred_y - batch_y))
+		#loss = torch.mean(torch.abs(pred_y - batch_y))
+		loss = torch.mean(torch.pow(pred_y - batch_y,2.0))
 		l1_norm = 1e-4*torch.norm(odefunc.C.weight, p=1)
 		loss += l1_norm
 		print(itr,i,loss.item(),l1_norm.item())

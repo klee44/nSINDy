@@ -36,6 +36,13 @@ def init_network_weights_orthogonal(net):
 			nn.init.orthogonal_(m.weight)
 			#nn.init.constant_(m.bias, val=0)
 
+def init_network_weights_zero(net):
+	for m in net.modules():
+		if isinstance(m, nn.Linear):
+			nn.init.zeros_(m.weight)
+			nn.init.zeros_(m.bias)
+
+
 def create_net(n_inputs, n_outputs, n_layers = 1, 
 	n_units = 100, nonlinear = nn.Tanh):
 	if n_layers == 0:
@@ -130,3 +137,13 @@ class Taylor(nn.Module):
 	def forward(self,x):
 		ret = torch.cat([torch.unsqueeze(1.*self.indc[ind]/scipy.math.factorial(len(ind))*torch.prod(torch.stack([x[...,d]**ind.count(d) for d in range(self.dim)]),0),-1)  for ind in sorted(self.indc)],-1)
 		return ret 
+
+class ResBlock(nn.Module):
+	def __init__(self, dim, n_layers=1, n_units=50, nonlinear=nn.Tanh, device="cpu"):
+		super(ResBlock, self).__init__()
+		self.dim = dim
+		self.net = create_net(dim, dim, n_layers=n_layers, n_units=n_units, nonlinear = nn.Tanh).to(device)
+		init_network_weights_zero(self.net)
+
+	def forward(self, x):
+		return self.net(x) + x

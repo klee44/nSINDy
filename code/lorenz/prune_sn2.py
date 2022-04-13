@@ -14,6 +14,7 @@ from random import SystemRandom
 import matplotlib.pyplot as plt
 
 import lib.utils as utils
+from lib.utils import TotalDegree
 from lib.odefunc import ODEfunc, ODEfuncPoly
 from lib.torchdiffeq import odeint as odeint
 #from lib.torchdiffeq import odeint_adjoint as odeint
@@ -54,9 +55,9 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/vdp_torch_noise1.npz")
-h_ref = 0.01 
-Time = 51.20 
+data = np.load("../data/lorenz_torch.npz")
+h_ref = 5e-4 
+Time = 2.56 
 N_steps = int(np.floor(Time/h_ref)) + 1
 t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
 t = torch.tensor(t).squeeze()
@@ -73,13 +74,25 @@ val_data = torch.utils.data.DataLoader(torch.tensor(data['val_data']),batch_size
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_size=50)
 #val_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
 #test_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
-odefunc = ODEfuncPoly(2, 3)
+
+'''
+TP = TotalDegree(2,3)
+lhs = (train_data[0,1:,:]-train_data[0,:-1,:])/h_ref
+rhs = TP(train_data[0,1:,:])
+C_init = np.linalg.lstsq(rhs.detach().numpy(), lhs.detach().numpy())[0].transpose()
+odefunc = ODEfuncPoly(2, 3, C_init)
+'''
+odefunc = ODEfuncPoly(3, 2)
+resblock = utils.ResBlock(3, 2, 100)
 
 parameters_to_prune = ((odefunc.C, "weight"),)
+print(odefunc.C.weight)
 
-params = odefunc.parameters()
+#params = odefunc.parameters()
+params = list(odefunc.parameters()) + list(resblock.parameters())
 optimizer = optim.Adamax(params, lr=args.lr)
-scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9987)
+#scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9987)
+scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9999999)
 
 best_loss = 1e30
 frame = 0 
@@ -88,22 +101,28 @@ for itr in range(args.nepoch):
 	print('=={0:d}=='.format(itr))
 	for i in range(args.niterbatch):
 		optimizer.zero_grad()
-		batch_y0, batch_t, batch_y = utils.get_batch(train_data,t,args.lMB,args.nMB)
-		pred_y = odeint(odefunc, batch_y0, batch_t, method=args.odeint).to(device).transpose(0,1)
-		loss = torch.mean(torch.abs(pred_y - batch_y))
+		batch_y0, batch_t, batch_y_forward, batch_yT, batch_t_backward, batch_y_backward = utils.get_batch_two_single(train_data,t,args.lMB,args.nMB,reverse=False)
+		#batch_y0 = resblock(batch_y0)
+		pred_y_forward = odeint(odefunc, batch_y0, batch_t, method=args.odeint).to(device).transpose(0,1)
+		#batch_yT = resblock(batch_yT)
+		pred_y_backward = odeint(odefunc, batch_yT, batch_t_backward, method=args.odeint).to(device).transpose(0,1)
+		loss = torch.mean(torch.abs(pred_y_forward - pred_y_backward.flip([1])))
+		#loss = torch.mean(torch.abs(pred_y_forward - batch_y_forward))
+		#loss += torch.mean(torch.abs(pred_y_backward - batch_y_backward))
 		l1_norm = 1e-4*torch.norm(odefunc.C.weight, p=1)
 		loss += l1_norm
 		print(itr,i,loss.item(),l1_norm.item())
 		loss.backward()
 		optimizer.step()
 		prune.global_unstructured(parameters_to_prune, pruning_method=ThresholdPruning, threshold=1e-6)
-	scheduler.step()
+#	if itr < 10000:
+#		scheduler.step()
 	
 	
-	if itr >= 100:
+	print(odefunc.C.weight)
+	if itr > 4900:#29000:
 		with torch.no_grad():
 			val_loss = 0
-			print(odefunc.C.weight)
 			
 			for d in val_data:
 				pred_y = odeint(odefunc, d[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
@@ -118,10 +137,10 @@ for itr in range(args.nepoch):
 			plt.figure()
 			plt.tight_layout()
 			save_file = os.path.join(fig_save_path,"image_{:03d}.png".format(frame))
-			fig = plt.figure(figsize=(8,4))
+			fig = plt.figure(figsize=(12,4))
 			axes = []
-			for i in range(2):
-				axes.append(fig.add_subplot(1,2,i+1))
+			for i in range(3):
+				axes.append(fig.add_subplot(1,3,i+1))
 				axes[i].plot(t,d[0,:,i].detach().numpy(),lw=2,color='k')
 				axes[i].plot(t,pred_y.detach().numpy()[0,:,i],lw=2,color='c',ls='--')
 				plt.savefig(save_file)
@@ -150,8 +169,8 @@ print('test loss', test_loss)
 
 fig = plt.figure(figsize=(12,4))
 axes = []
-for i in range(2):
-	axes.append(fig.add_subplot(1,2,i+1))
+for i in range(3):
+	axes.append(fig.add_subplot(1,3,i+1))
 	axes[i].plot(t,data['test_data'][0,:,i],lw=3,color='k')
 	axes[i].plot(t,test_sol[0,:,i],lw=2,color='c',ls='--')
 

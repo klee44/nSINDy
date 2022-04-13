@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import lib.utils as utils
 from lib.odefunc import ODEfunc, ODEfuncPoly
 from lib.torchdiffeq import odeint as odeint
-#from lib.torchdiffeq import odeint_adjoint as odeint
+from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
 import torch.nn.utils.prune as prune
 from lib.prune import ThresholdPruning

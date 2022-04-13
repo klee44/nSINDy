@@ -12,7 +12,7 @@ device = torch.device('cuda:' + str(args.gpu) if torch.cuda.is_available() else 
 
 # adjustable parameters
 dt = 0.01       # set to 5e-4 for Lorenz
-noise = 0.      # for study of noisy measurements, we use noise=0.01, 0.02; otherwise we leave it as 0.
+noise = 0.1      # for study of noisy measurements, we use noise=0.01, 0.02; otherwise we leave it as 0.
 n_forward = 5
 total_steps = 1024 * n_forward
 t = torch.linspace(0, (total_steps)*dt, total_steps+1).to(device)
@@ -31,9 +31,9 @@ np.random.seed(2)
 n = 2
 
 # dataset 
-n_train = 10 
-n_val = 10
-n_test = 10
+n_train = 80#1600
+n_val = 16#320
+n_test = 16#320
 
 # simulate training trials 
 train_data = np.zeros((n_train, total_steps+1, n))
@@ -62,6 +62,6 @@ for i in range(n_test):
 # add noise
 train_data += noise*train_data.std(1).mean(0)*np.random.randn(*train_data.shape)
 val_data += noise*val_data.std(1).mean(0)*np.random.randn(*val_data.shape)
-test_data += noise*test_data.std(1).mean(0)*np.random.randn(*test_data.shape)
+#test_data += noise*test_data.std(1).mean(0)*np.random.randn(*test_data.shape)
 
-np.savez('vdp_torch.npz', train_data=train_data,val_data=val_data,test_data=test_data)
+np.savez('vdp_torch_noise1.npz', train_data=train_data,val_data=val_data,test_data=test_data)

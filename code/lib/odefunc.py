@@ -54,7 +54,7 @@ class ODEfunc(nn.Module):
 		return output 
 
 class ODEfuncPoly(nn.Module):
-	def __init__(self, dim, order, device = torch.device("cpu")):
+	def __init__(self, dim, order, C_init=None, device = torch.device("cpu")):
 		super(ODEfuncPoly, self).__init__()
 		self.NFE = 0
 		#self.TP = TensorProduct(dim,order)
@@ -62,6 +62,10 @@ class ODEfuncPoly(nn.Module):
 		#self.TP = Taylor(dim,order)
 		#self.C = nn.Parameter(torch.randn((self.TP.nterms, dim), requires_grad=True))
 		self.C = nn.Linear(self.TP.nterms,dim,bias=False)
+		if C_init is not None:
+			with torch.no_grad():
+				self.C.weight.copy_(torch.tensor(C_init))
+			#self.C.weight = nn.Parameter(torch.tensor(C_init))
 		#utils.init_network_weights_orthogonal(self.C)
 		nn.init.zeros_(self.C.weight)
 

@@ -1,8 +1,3 @@
-###########################
-# Latent ODEs for Irregularly-Sampled Time Series
-# Author: Yulia Rubanova
-###########################
-
 import os
 import logging
 import pickle
@@ -41,6 +36,13 @@ def init_network_weights_orthogonal(net):
 			nn.init.orthogonal_(m.weight)
 			#nn.init.constant_(m.bias, val=0)
 
+def init_network_weights_zero(net):
+	for m in net.modules():
+		if isinstance(m, nn.Linear):
+			nn.init.zeros_(m.weight)
+			nn.init.zeros_(m.bias)
+
+
 def create_net(n_inputs, n_outputs, n_layers = 1, 
 	n_units = 100, nonlinear = nn.Tanh):
 	if n_layers == 0:
@@ -66,6 +68,29 @@ def get_batch(data, t, batch_len=60, batch_size=100, device = torch.device("cpu"
 		batch_t = batch_t.flip([0])
 		batch_y = batch_y.flip([1])
 	return batch_y0.to(device), batch_t.to(device), batch_y.to(device)
+
+def get_batch_two(data, t, batch_len=60, batch_size=100, device = torch.device("cpu"), reverse=False):
+	r = torch.from_numpy(np.random.choice(np.arange(len(data),dtype=np.int64),batch_size, replace=False))
+	s = torch.from_numpy(np.random.choice(np.arange(len(t) - batch_len, dtype=np.int64), batch_size, replace=False))
+	batch_y0 = data[r,s,:]  # (M, D)
+	batch_t = t[:batch_len]  # (T)
+	batch_y = torch.stack([data[r,s + i,:] for i in range(batch_len)], dim=1)  # (T, M, D)
+	
+	batch_y0_backward = batch_y[:,-1,:]
+	batch_t_backward = batch_t.flip([0])
+	batch_y_backward = batch_y.flip([1])
+	return batch_y0.to(device), batch_t.to(device), batch_y.to(device), batch_y0_backward.to(device), batch_t_backward.to(device), batch_y_backward.to(device)
+
+def get_batch_two_single(data, t, batch_len=60, batch_size=100, device = torch.device("cpu"), reverse=False):
+	s = torch.from_numpy(np.random.choice(np.arange(len(t) - batch_len, dtype=np.int64), batch_size, replace=False))
+	batch_y0 = data[0,s,:]  # (M, D)
+	batch_t = t[:batch_len]  # (T)
+	batch_y = torch.stack([data[0,s + i,:] for i in range(batch_len)], dim=1)  # (T, M, D)
+	
+	batch_y0_backward = batch_y[:,-1,:]
+	batch_t_backward = batch_t.flip([0])
+	batch_y_backward = batch_y.flip([1])
+	return batch_y0.to(device), batch_t.to(device), batch_y.to(device), batch_y0_backward.to(device), batch_t_backward.to(device), batch_y_backward.to(device)
 
 def get_batch_t(data, t, batch_len=60, batch_size=100, device = torch.device("cpu")):
 	r = torch.from_numpy(np.random.choice(np.arange(len(data),dtype=np.int64),batch_size, replace=False))
@@ -135,3 +160,13 @@ class Taylor(nn.Module):
 	def forward(self,x):
 		ret = torch.cat([torch.unsqueeze(1.*self.indc[ind]/scipy.math.factorial(len(ind))*torch.prod(torch.stack([x[...,d]**ind.count(d) for d in range(self.dim)]),0),-1)  for ind in sorted(self.indc)],-1)
 		return ret 
+
+class ResBlock(nn.Module):
+	def __init__(self, dim, n_layers=1, n_units=50, nonlinear=nn.Tanh, device="cpu"):
+		super(ResBlock, self).__init__()
+		self.dim = dim
+		self.net = create_net(dim, dim, n_layers=n_layers, n_units=n_units, nonlinear = nn.Tanh).to(device)
+		init_network_weights_zero(self.net)
+
+	def forward(self, x):
+		return self.net(x) + x

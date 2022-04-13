@@ -54,7 +54,7 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/hyperbolic_torch.npz")
+data = np.load("../data/hyperbolic_torch_noise2.npz")
 h_ref = 0.01 
 Time = 51.20 
 N_steps = int(np.floor(Time/h_ref)) + 1
@@ -99,35 +99,35 @@ for itr in range(args.nepoch):
 		prune.global_unstructured(parameters_to_prune, pruning_method=ThresholdPruning, threshold=1e-6)
 	scheduler.step()
 	
-	
-	with torch.no_grad():
-		val_loss = 0
-		print(odefunc.C.weight)
-		
-		for d in val_data:
-			pred_y = odeint(odefunc, d[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
-			val_loss += torch.mean(torch.abs(pred_y - d)).item()
-		print('val loss', val_loss)
+	if itr > 100:
+		with torch.no_grad():
+			val_loss = 0
+			print(odefunc.C.weight)
 			
-		if best_loss > val_loss:
-			print('saving...', val_loss)
-			torch.save({'state_dict': odefunc.state_dict(),}, ckpt_path)
-			best_loss = val_loss 
+			for d in val_data:
+				pred_y = odeint(odefunc, d[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
+				val_loss += torch.mean(torch.abs(pred_y - d)).item()
+			print('val loss', val_loss)
+				
+			if best_loss > val_loss:
+				print('saving...', val_loss)
+				torch.save({'state_dict': odefunc.state_dict(),}, ckpt_path)
+				best_loss = val_loss 
 
-		plt.figure()
-		plt.tight_layout()
-		save_file = os.path.join(fig_save_path,"image_{:03d}.png".format(frame))
-		fig = plt.figure(figsize=(8,4))
-		axes = []
-		for i in range(2):
-			axes.append(fig.add_subplot(1,2,i+1))
-			axes[i].plot(t,d[0,:,i].detach().numpy(),lw=2,color='k')
-			axes[i].plot(t,pred_y.detach().numpy()[0,:,i],lw=2,color='c',ls='--')
-			plt.savefig(save_file)
-		plt.close(fig)
-		plt.close('all')
-		plt.clf()
-		frame += 1
+			plt.figure()
+			plt.tight_layout()
+			save_file = os.path.join(fig_save_path,"image_{:03d}.png".format(frame))
+			fig = plt.figure(figsize=(8,4))
+			axes = []
+			for i in range(2):
+				axes.append(fig.add_subplot(1,2,i+1))
+				axes[i].plot(t,d[0,:,i].detach().numpy(),lw=2,color='k')
+				axes[i].plot(t,pred_y.detach().numpy()[0,:,i],lw=2,color='c',ls='--')
+				plt.savefig(save_file)
+			plt.close(fig)
+			plt.close('all')
+			plt.clf()
+			frame += 1
 
 
 ckpt = torch.load(ckpt_path)

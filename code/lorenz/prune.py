@@ -54,7 +54,7 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/lorenz_torch.npz")
+data = np.load("../data/lorenz_torch_noise1.npz")
 h_ref = 5e-4 
 Time = 2.56 
 N_steps = int(np.floor(Time/h_ref)) + 1
@@ -73,15 +73,15 @@ val_data = torch.utils.data.DataLoader(torch.tensor(data['val_data']),batch_size
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_size=50)
 #val_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
 #test_data = torch.utils.data.DataLoader(torch.tensor(data['train_data'][:1,:,:]),batch_size=50)
-odefunc = ODEfuncPoly(3, 3)
+odefunc = ODEfuncPoly(3, 2)
 
 parameters_to_prune = ((odefunc.C, "weight"),)
 print(odefunc.C.weight)
 
 params = odefunc.parameters()
 optimizer = optim.Adamax(params, lr=args.lr)
-#scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9987)
-scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9998)
+scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9987)
+#scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9998)
 
 best_loss = 1e30
 frame = 0 
@@ -92,19 +92,20 @@ for itr in range(args.nepoch):
 		optimizer.zero_grad()
 		batch_y0, batch_t, batch_y = utils.get_batch(train_data,t,args.lMB,args.nMB)
 		pred_y = odeint(odefunc, batch_y0, batch_t, method=args.odeint).to(device).transpose(0,1)
-		loss = torch.mean(torch.abs(pred_y - batch_y))
+		#loss = torch.mean(torch.abs(pred_y - batch_y))
+		loss = torch.mean(torch.pow(pred_y - batch_y,2.0))
 		l1_norm = 1e-4*torch.norm(odefunc.C.weight, p=1)
 		loss += l1_norm
 		print(itr,i,loss.item(),l1_norm.item())
 		loss.backward()
 		optimizer.step()
 		prune.global_unstructured(parameters_to_prune, pruning_method=ThresholdPruning, threshold=1e-6)
-	if itr < 10000:
-		scheduler.step()
+	#if itr < 100:
+	#	scheduler.step()
 	
 	
 	print(odefunc.C.weight)
-	if itr > 29000:
+	if itr > 100:
 		with torch.no_grad():
 			val_loss = 0
 			

@@ -31,9 +31,9 @@ np.random.seed(2)
 n = 2
 
 # dataset 
-n_train = 1600
-n_val = 320
-n_test = 320
+n_train = 10 
+n_val = 10
+n_test = 10
 
 # simulate training trials 
 train_data = np.zeros((n_train, total_steps+1, n))

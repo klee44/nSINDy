@@ -19,7 +19,7 @@ total_steps = 1024 * n_forward # around 30 sec
 t = torch.linspace(0, (total_steps)*dt, total_steps+1).to(device)
 
 # system
-F = 8
+F = 10 
 N = 6
     
 def lorenz_rhs_torch(t,x):
@@ -35,15 +35,15 @@ def lorenz_rhs_torch(t,x):
 np.random.seed(2)
 
 # dataset 
-n_train = 128
-n_val = 128
-n_test = 16
+n_train = 32#128
+n_val = 16#128
+n_test = 16#16
 n = N 
 
 # simulate training trials 
 train_data = np.zeros((n_train, total_steps+1, n))
 print('generating training trials ...')
-x_init = torch.tensor(np.array([1., 8., 8., 8., 8., 8.])).unsqueeze(0) 
+x_init = torch.tensor(np.array([1.] + [.8 for i in range(5) ])).unsqueeze(0) 
 
 for i in range(n_train):
 	x_init_i = x_init + 2*torch.rand(x_init.shape) - 1

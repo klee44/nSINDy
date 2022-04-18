@@ -91,11 +91,7 @@ for itr in range(args.nepoch):
 		loss.backward()
 		optimizer.step()
 		prune.global_unstructured(parameters_to_prune, pruning_method=ThresholdPruning, threshold=1e-6)
-	if itr < 10000:
-		scheduler.step()
-	if itr >= 50 and itr % 50 == 0:
-		args.lMB *= 2
-	
+	scheduler.step()
 	
 	print(odefunc.C.weight)
 	if itr > 200:

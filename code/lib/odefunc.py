@@ -43,6 +43,120 @@ class ODEFunc_(nn.Module):
 		"""
 		return self.get_ode_gradient_nn(t_local, y)
 
+class POULayer(nn.Module):
+	def __init__(self, bias=True,npart=4, npoly=3):
+		super().__init__()
+		self.npart = npart
+		self.npolydim = npoly+1
+		self.xrbf =  nn.Parameter(torch.linspace(0.0, 1.0, npart))
+		self.epsrbf = nn.Parameter(((1.0)/npart)*torch.ones(npart))
+		self.Ppow = torch.arange(0,float(self.npolydim))
+
+	def reset_parameters(self):
+		torch.nn.init.zeros_(self.coeffs)
+		
+	def getpoulayer(self, x):
+		rrbf = torch.transpose(torch.pow(torch.abs(x.unsqueeze(0)-self.xrbf.unsqueeze(1)),1), 1, 0) 
+		rbflayer = torch.exp( - (rrbf/(torch.pow(self.epsrbf,2.0)+1.e-4) ) ) 
+		rbfsum = torch.sum(rbflayer, axis=1)
+		return torch.transpose(torch.transpose(rbflayer, 1, 0)/rbfsum, 1, 0)
+		        
+	def calculate_weights(self, t):
+		basis = torch.pow(t,self.Ppow)
+		poly = torch.einsum('ijk,k->ij',self.coeffs,basis)
+		parts = self.getpoulayer(t)
+		return torch.einsum('ij,kj->i', poly, parts) 
+
+class POULinear(POULayer):
+	def __init__(self, in_features, out_features, bias=True):       
+		super().__init__(bias)
+        
+		self.in_features, self.out_features = in_features, out_features
+		self.weight = torch.Tensor(out_features, in_features)
+		if bias:
+			self.bias = torch.Tensor(out_features)
+		else:
+			self.register_parameter('bias', None)         
+		self.coeffs = torch.nn.Parameter(torch.Tensor((in_features+1)*out_features, self.npart, self.npolydim))        
+		self.reset_parameters()  
+		                
+	def forward(self, input):
+		t = input[-1,-1]
+		input = input[:,:-1]
+		w = self.calculate_weights(t)
+		self.weight = w[0:self.in_features*self.out_features].reshape(self.out_features, self.in_features)
+		self.bias = w[self.in_features*self.out_features:(self.in_features+1)*self.out_features].reshape(self.out_features)
+		return torch.nn.functional.linear(input, self.weight, self.bias)
+
+class POUPoly(POULayer):
+	def __init__(self, in_features, out_features, bias=True):       
+		super().__init__(bias)
+        
+		self.in_features, self.out_features = in_features, out_features
+		self.weight = torch.Tensor(out_features, in_features)
+		self.register_parameter('bias', None)         
+
+		self.coeffs = torch.nn.Parameter(torch.Tensor((in_features+1)*out_features, self.npart, self.npolydim))        
+		self.reset_parameters()  
+		                
+	def forward(self, input):
+		t = input[-1,-1]
+		input = input[:,:-1]
+		w = self.calculate_weights(t)
+		self.weight = w[0:self.in_features*self.out_features].reshape(self.out_features, self.in_features)
+		return torch.nn.functional.linear(input, self.weight)
+
+class DepthCat(nn.Module):
+	def __init__(self, idx_cat=1):
+		super().__init__()
+		self.idx_cat = idx_cat
+		self.t = None
+
+	def forward(self, x):
+		t_shape = list(x.shape)
+		t_shape[self.idx_cat] = 1
+		t = self.t * torch.ones(t_shape).to(x)
+		return torch.cat([x, t], self.idx_cat).to(x)
+
+class ODEfuncPOU(nn.Module):
+	def __init__(self):
+		super(ODEfuncPOU, self).__init__()
+		
+		hdim = 50 
+		self.net = nn.Sequential(
+			nn.Linear(2, hdim),
+			nn.Tanh(),
+			DepthCat(1),
+			POULinear(hdim, hdim),
+			nn.Tanh(),
+			nn.Linear(hdim, 2)
+		)
+		
+	def forward(self, t, y):
+		for _, module in self.net.named_modules():
+			if hasattr(module, 't'):
+				module.t = t
+		return self.net(y)
+
+class ODEfuncPOUPoly(nn.Module):
+	def __init__(self, dim, order, C_init=None, device = torch.device("cpu")):
+		super(ODEfuncPOUPoly, self).__init__()
+		self.NFE = 0
+		self.TP = TotalDegree(dim,order)
+	
+		self.net = nn.Sequential(
+			DepthCat(1),
+			POUPoly(self.TP.nterms, dim)
+		)
+
+	def forward(self, t, y):
+		for _, module in self.net.named_modules():
+			if hasattr(module, 't'):
+				module.t = t
+		P = self.TP(y)
+		output = self.net(P)
+		return output 
+
 class ODEfunc(nn.Module):
 	def __init__(self, dim, nlayer, nunit, device = torch.device("cpu")):
 		super(ODEfunc, self).__init__()

@@ -22,8 +22,8 @@ n_forwards = np.asarray([7,3,4])
 total_steps = 512 * n_forwards
 total_step = total_steps.sum()
 
-t = torch.linspace(0, (total_step)*dt, total_step+1).to(device)
-t_idx = np.insert(total_steps, 0, 0).cumsum()
+t = torch.linspace(0, (total_step)*dt, total_step+3).to(device)
+t_idx = np.insert(total_steps+1, 0, 0).cumsum()
 
 alphas = torch.tensor(np.random.uniform(.25, 2.5, len(n_forwards))).to(device)
 betas = torch.tensor(np.random.uniform(.25, 2.5, len(n_forwards))).to(device)
@@ -41,14 +41,16 @@ n = 2
 
 # simulate training trials 
 train_data = [] 
+x_init = torch.tensor(np.random.uniform(.5, 2.0, n)).to(device).unsqueeze(0)
 for i in range(len(n_forwards)):
 	def cubic_rhs_torch(t,x):
 		return torch.cat( (alphas[i]*x[:,0]-betas[i]*x[:,0]*x[:,1], deltas[i]*x[:,0]*x[:,1]-gammas[i]*x[:,1]), axis=-1)
-	x_init = torch.tensor(np.random.uniform(.5, 2.0, n)).to(device).unsqueeze(0)
 	sol = odeint(cubic_rhs_torch,x_init,t[t_idx[i]:t_idx[i+1]],method='dopri5').to(device).squeeze().detach().numpy()
 	train_data.append(sol)
 	print(sol.shape)
+	x_init = torch.tensor(sol[-1,:]).to(device).unsqueeze(0)
 train_data = np.concatenate(train_data, axis=0)
+train_data = np.delete(train_data, total_steps, 0)
 print(train_data.shape)
 	
 import matplotlib.pyplot as plt

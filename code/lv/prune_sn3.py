@@ -62,7 +62,7 @@ n_forwards = np.asarray([7,3,4])
 total_steps = 512 * n_forwards
 total_step = total_steps.sum()
 
-t = torch.linspace(0, (total_step)*dt, total_step+1).to(device) 
+t = torch.linspace(0, (total_step)*dt, total_step).to(device) 
 
 train_data = torch.tensor(data['train_data'][:,:]).unsqueeze(0)
 
@@ -70,7 +70,6 @@ odefunc = ODEfuncPOUPoly(2, 2)
 #resblock = utils.ResBlock(3, 2, 100)
 
 #parameters_to_prune = ((odefunc.net[1], "weight"),)
-print(odefunc.net[1].weight)
 
 #params = odefunc.parameters()
 params = list(odefunc.parameters()) #+ list(resblock.parameters())
@@ -85,13 +84,13 @@ for itr in range(args.nepoch):
 	print('=={0:d}=='.format(itr))
 	for i in range(args.niterbatch):
 		optimizer.zero_grad()
-		batch_y0, batch_t, batch_y_forward, batch_yT, batch_t_backward, batch_y_backward = utils.get_batch_two_single(train_data,t,args.lMB,args.nMB,reverse=False)
+		batch_y0, batch_t, batch_y_forward, batch_yT, batch_t_backward, batch_y_backward = utils.get_batch_two_single_time(train_data,t,args.lMB,args.nMB,reverse=False)
 		#batch_y0 = resblock(batch_y0)
 		pred_y_forward = odeint(odefunc, batch_y0, batch_t, method=args.odeint).to(device).transpose(0,1)
 		#batch_yT = resblock(batch_yT)
-		pred_y_backward = odeint(odefunc, batch_yT, batch_t_backward, method=args.odeint).to(device).transpose(0,1)
-		loss = torch.mean(torch.abs(pred_y_forward - pred_y_backward.flip([1])))
-		#loss = torch.mean(torch.abs(pred_y_forward - batch_y_forward))
+		#pred_y_backward = odeint(odefunc, batch_yT, batch_t_backward, method=args.odeint).to(device).transpose(0,1)
+		#loss = torch.mean(torch.abs(pred_y_forward - pred_y_backward.flip([1])))
+		loss = torch.mean(torch.abs(pred_y_forward - batch_y_forward))
 		#loss += torch.mean(torch.abs(pred_y_backward - batch_y_backward))
 		l1_norm = 1e-4*torch.norm(odefunc.net[1].weight, p=1)
 		loss += l1_norm
@@ -101,12 +100,14 @@ for itr in range(args.nepoch):
 		#prune.global_unstructured(parameters_to_prune, pruning_method=ThresholdPruning, threshold=1e-6)
 	
 	print(odefunc.net[1].weight)
-	if itr > 900:#29000:
+	if itr >= 5:#29000:
 		with torch.no_grad():
 			val_loss = 0
+
+			parts = odefunc.net[1].getpoulayer(t)
 			
 			pred_y = odeint(odefunc, train_data[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
-			val_loss = torch.mean(torch.abs(pred_y - d)).item()
+			val_loss = torch.mean(torch.abs(pred_y - train_data)).item()
 			print('val loss', val_loss)
 				
 			if best_loss > val_loss:
@@ -117,13 +118,19 @@ for itr in range(args.nepoch):
 			plt.figure()
 			plt.tight_layout()
 			save_file = os.path.join(fig_save_path,"image_{:03d}.png".format(frame))
-			fig = plt.figure(figsize=(8,4))
+			fig = plt.figure(figsize=(12,4))
 			axes = []
 			for i in range(2):
-				axes.append(fig.add_subplot(1,2,i+1))
+				axes.append(fig.add_subplot(1,3,i+1))
+				
 				axes[i].plot(t,train_data[0,:,i].detach().numpy(),lw=2,color='k')
 				axes[i].plot(t,pred_y.detach().numpy()[0,:,i],lw=2,color='c',ls='--')
-				plt.savefig(save_file)
+
+			axes.append(fig.add_subplot(1,3,3))
+			for i in range(parts.shape[1]):
+				axes[2].plot(t, parts[:,i].detach().numpy())
+
+			plt.savefig(save_file)
 			plt.close(fig)
 			plt.close('all')
 			plt.clf()
@@ -138,7 +145,7 @@ torch.save({'state_dict': odefunc.state_dict(),}, ckpt_path)
 
 odefunc.NFE = 0
 pred_y = odeint(odefunc, train_data[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
-test_loss = torch.mean(torch.abs(pred_y - d)).item()
+test_loss = torch.mean(torch.abs(pred_y - train_data)).item()
 print('test loss', test_loss)
 				
 plt.figure()

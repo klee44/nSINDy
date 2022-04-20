@@ -44,11 +44,11 @@ class ODEFunc_(nn.Module):
 		return self.get_ode_gradient_nn(t_local, y)
 
 class POULayer(nn.Module):
-	def __init__(self, bias=True,npart=4, npoly=3):
+	def __init__(self, bias=True,npart=3, npoly=0):
 		super().__init__()
 		self.npart = npart
 		self.npolydim = npoly+1
-		self.xrbf =  nn.Parameter(torch.linspace(0.0, 1.0, npart))
+		self.xrbf =  nn.Parameter(torch.linspace(10.0, 60.0, npart))
 		self.epsrbf = nn.Parameter(((1.0)/npart)*torch.ones(npart))
 		self.Ppow = torch.arange(0,float(self.npolydim))
 
@@ -96,7 +96,7 @@ class POUPoly(POULayer):
 		self.weight = torch.Tensor(out_features, in_features)
 		self.register_parameter('bias', None)         
 
-		self.coeffs = torch.nn.Parameter(torch.Tensor((in_features+1)*out_features, self.npart, self.npolydim))        
+		self.coeffs = torch.nn.Parameter(torch.zeros((in_features+1)*out_features, self.npart, self.npolydim))        
 		self.reset_parameters()  
 		                
 	def forward(self, input):

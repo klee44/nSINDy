@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 import lib.utils as utils
 from lib.utils import TotalDegree
-from lib.odefunc import ODEfunc, ODEfuncPoly, ODEfuncPOUPoly
+from lib.odefunc import ODEfunc, ODEfuncPoly, ODEfuncPOUPoly, ODEfuncPOUMaskPoly
 from lib.torchdiffeq import odeint as odeint
 #from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
@@ -55,9 +55,15 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
+'''
 data = np.load("../data/lv_torch_3.npz")
 dt = 0.01 
-n_forwards = np.asarray([7,3,4])
+n_forwards = np.asarray([7,4,5])
+'''
+
+data = np.load("../data/lv_torch_4.npz")
+dt = 0.01 
+n_forwards = np.asarray([7,4,6,5])
 
 total_steps = 512 * n_forwards
 total_step = total_steps.sum()
@@ -66,10 +72,10 @@ t = torch.linspace(0, (total_step)*dt, total_step).to(device)
 
 train_data = torch.tensor(data['train_data'][:,:]).unsqueeze(0)
 
-odefunc = ODEfuncPOUPoly(2, 2)
+odefunc = ODEfuncPOUMaskPoly(2, 2)
 #resblock = utils.ResBlock(3, 2, 100)
 
-#parameters_to_prune = ((odefunc.net[1], "weight"),)
+parameters_to_prune = ((odefunc.net[1], "coeffs"),)
 
 #params = odefunc.parameters()
 params = list(odefunc.parameters()) #+ list(resblock.parameters())
@@ -88,25 +94,28 @@ for itr in range(args.nepoch):
 		#batch_y0 = resblock(batch_y0)
 		pred_y_forward = odeint(odefunc, batch_y0, batch_t, method=args.odeint).to(device).transpose(0,1)
 		#batch_yT = resblock(batch_yT)
-		#pred_y_backward = odeint(odefunc, batch_yT, batch_t_backward, method=args.odeint).to(device).transpose(0,1)
+		pred_y_backward = odeint(odefunc, batch_yT, batch_t_backward, method=args.odeint).to(device).transpose(0,1)
 		#loss = torch.mean(torch.abs(pred_y_forward - pred_y_backward.flip([1])))
 		loss = torch.mean(torch.abs(pred_y_forward - batch_y_forward))
-		#loss += torch.mean(torch.abs(pred_y_backward - batch_y_backward))
-		l1_norm = 1e-4*torch.norm(odefunc.net[1].weight, p=1)
+		loss += torch.mean(torch.abs(pred_y_backward - batch_y_backward))
+		#loss = torch.mean(torch.abs(pred_y_forward - pred_y_backward.flip([1])))
+		l1_norm = 1e-4*torch.norm(odefunc.net[1].coeffs, p=1)
 		loss += l1_norm
 		print(itr,i,loss.item(),l1_norm.item())
 		loss.backward()
 		optimizer.step()
-		#prune.global_unstructured(parameters_to_prune, pruning_method=ThresholdPruning, threshold=1e-6)
+		if itr >= 5:
+			prune.global_unstructured(parameters_to_prune, pruning_method=ThresholdPruning, threshold=1e-6)
 	
-	print(odefunc.net[1].weight)
-	if itr >= 5:#29000:
+	print(odefunc.net[1].coeffs)
+	if itr >= 2000:#29000:
 		with torch.no_grad():
 			val_loss = 0
 
 			parts = odefunc.net[1].getpoulayer(t)
 			
-			pred_y = odeint(odefunc, train_data[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
+			#pred_y = odeint(odefunc, train_data[:,0,:], t, method=args.odeint).to(device).transpose(0,1)
+			pred_y = odeint(odefunc, train_data[:,0,:], t, method='rk4').to(device).transpose(0,1)
 			val_loss = torch.mean(torch.abs(pred_y - train_data)).item()
 			print('val loss', val_loss)
 				
@@ -139,8 +148,8 @@ for itr in range(args.nepoch):
 ckpt = torch.load(ckpt_path)
 odefunc.load_state_dict(ckpt['state_dict'])
 
-#prune.remove(odefunc.net[1], 'weight')
-print(odefunc.net[1].weight)
+prune.remove(odefunc.net[1], 'coeffs')
+#print(odefunc.net[1].weight)
 torch.save({'state_dict': odefunc.state_dict(),}, ckpt_path)
 
 odefunc.NFE = 0

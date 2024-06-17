@@ -13,13 +13,13 @@ device = torch.device('cuda:' + str(args.gpu) if torch.cuda.is_available() else 
 # adjustable parameters
 dt = 0.01       # set to 5e-4 for Lorenz
 noise = 0.      # for study of noisy measurements, we use noise=0.01, 0.02; otherwise we leave it as 0.
-n_forward = 5
+#n_forward = 5
 n_forward = 3 # testing
 total_steps = 1024 * n_forward # around 30 sec
 t = torch.linspace(0, (total_steps)*dt, total_steps+1).to(device)
 
 # system
-F = 10 
+F = 8 
 N = 6
     
 def lorenz_rhs_torch(t,x):
@@ -43,7 +43,7 @@ n = N
 # simulate training trials 
 train_data = np.zeros((n_train, total_steps+1, n))
 print('generating training trials ...')
-x_init = torch.tensor(np.array([1.] + [.8 for i in range(5) ])).unsqueeze(0) 
+x_init = torch.tensor(np.array([1.] + [8. for i in range(5) ])).unsqueeze(0) 
 
 for i in range(n_train):
 	x_init_i = x_init + 2*torch.rand(x_init.shape) - 1

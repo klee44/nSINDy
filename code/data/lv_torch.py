@@ -9,7 +9,7 @@ import torch.nn as nn
 from torchdiffeq import odeint
 
 torch.set_default_dtype(torch.float64)
-np.random.seed(1123)
+np.random.seed(1)
 
 device = torch.device('cuda:' + str(args.gpu) if torch.cuda.is_available() else 'cpu')
 
@@ -17,7 +17,8 @@ device = torch.device('cuda:' + str(args.gpu) if torch.cuda.is_available() else 
 dt = 0.01       # set to 5e-4 for Lorenz
 noise = 0.0      # for study of noisy measurements, we use noise=0.01, 0.02; otherwise we leave it as 0.
 
-n_forwards = np.asarray([7,3,4])
+'''
+n_forwards = np.asarray([7,4,5])
 
 total_steps = 512 * n_forwards
 total_step = total_steps.sum()
@@ -29,6 +30,20 @@ alphas = torch.tensor(np.random.uniform(.25, 2.5, len(n_forwards))).to(device)
 betas = torch.tensor(np.random.uniform(.25, 2.5, len(n_forwards))).to(device)
 deltas = torch.tensor(np.random.uniform(.25, 2.5, len(n_forwards))).to(device)
 gammas = torch.tensor(np.random.uniform(.25, 2.5, len(n_forwards))).to(device)
+'''
+
+n_forwards = np.asarray([7,4,6,5])
+
+total_steps = 512 * n_forwards
+total_step = total_steps.sum()
+
+t = torch.linspace(0, (total_step)*dt, total_step+4).to(device)
+t_idx = np.insert(total_steps+1, 0, 0).cumsum()
+
+alphas = torch.tensor(np.random.uniform(.25, .5, len(n_forwards))).to(device)
+betas = torch.tensor(np.random.uniform(.25, .5, len(n_forwards))).to(device)
+deltas = torch.tensor(np.random.uniform(.25, .5, len(n_forwards))).to(device)
+gammas = torch.tensor(np.random.uniform(.25, .5, len(n_forwards))).to(device)
 
 print(alphas,betas,deltas,gammas)
 # system

@@ -53,7 +53,7 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/lorenz_torch.npz")
+data = np.load("../data/lorenz_torch_160.npz")
 h_ref = 5e-4 
 Time = 2.56 
 N_steps = int(np.floor(Time/h_ref)) + 1

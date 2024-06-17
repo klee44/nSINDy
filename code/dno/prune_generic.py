@@ -20,6 +20,7 @@ from lib.torchdiffeq import odeint as odeint
 #import lib.odeint as odeint
 import torch.nn.utils.prune as prune
 from lib.prune import ThresholdPruning
+import time
 import argparse
 parser = argparse.ArgumentParser(description='.')
 parser.add_argument('--r', type=int, default=0, help='random_seed')
@@ -84,6 +85,7 @@ scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9987)
 
 best_loss = 1e30
 frame = 0 
+print(time.time(), time.clock())
 
 for itr in range(args.nepoch):
 	print('=={0:d}=='.format(itr))
@@ -101,7 +103,7 @@ for itr in range(args.nepoch):
 	scheduler.step()
 	
 	
-	print(odefunc.C.weight)
+	#print(odefunc.C.weight)
 	if itr > 50:
 		val_loss = 0
 			
@@ -129,6 +131,7 @@ for itr in range(args.nepoch):
 		plt.close('all')
 		plt.clf()
 		frame += 1
+print(time.time(), time.clock())
 
 
 ckpt = torch.load(ckpt_path)

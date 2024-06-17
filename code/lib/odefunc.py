@@ -6,7 +6,56 @@ import torch.nn.functional as F
 import lib.utils as utils
 from lib.utils import TensorProduct, Taylor, TotalDegree, TotalDegreeTrig
 
+import itertools
+import toolz
+from collections import Counter
+
+from lib.eff_kan import KAN
 #####################################################################################################
+
+class ODEfunc_KAN(nn.Module):
+	#def __init__(self, dim, nlayer, nunit, grid=5, k=3, lamb_l1=1., lamb_entropy=2., lamb_coef=0., lamb_coefdiff=0.,device = torch.device("cpu")):
+	def __init__(self, dim, kanlayer, grid=5, k=3, lamb_l1=1., lamb_entropy=2., lamb_coef=0., lamb_coefdiff=0.,device = torch.device("cpu")):
+		super(ODEfunc_KAN, self).__init__()
+		#dims = [dim] + [nunit for i in range(nlayer)] + [dim]
+		if kanlayer is not None:
+			dims = [dim] + kanlayer + [dim]
+		else:
+			dims = [dim] + [dim]
+		#self.gradient_net = KAN([dim, 10, dim]).to(device)
+		#self.gradient_net = KAN(dims, grid=grid, k=k)
+		self.gradient_net = KAN(dims, grid_size=grid, spline_order=k)
+		self.NFE = 0
+		self.reg_total = 0.
+		self.lamb_l1=lamb_l1
+		self.lamb_entropy=lamb_entropy
+		self.lamb_coef=lamb_coef
+		self.lamb_coefdiff=lamb_coefdiff
+
+	def reg(self, acts_scale, act_fun):
+		def nonlinear(x, th=1e-16, factor=1.): 
+			return (x < th) * x * factor + (x > th) * (x + (factor - 1) * th)
+
+		reg_ = 0.
+		for i in range(len(acts_scale)):
+			vec = acts_scale[i].reshape(-1, )
+
+			p = vec / torch.sum(vec)
+			l1 = torch.sum(nonlinear(vec))
+			entropy = - torch.sum(p * torch.log2(p + 1e-4))
+			reg_ += self.lamb_l1 * l1 + self.lamb_entropy * entropy  # both l1 and entropy
+		for i in range(len(act_fun)):
+			coeff_l1 = torch.sum(torch.mean(torch.abs(act_fun[i].coef), dim=1))
+			coeff_diff_l1 = torch.sum(torch.mean(torch.abs(torch.diff(act_fun[i].coef)), dim=1))
+			reg_ += self.lamb_coef * coeff_l1 + self.lamb_coefdiff * coeff_diff_l1
+
+		return reg_
+	
+	def forward(self, t, y):
+		output = self.gradient_net(y)
+		#reg = self.reg(self.gradient_net.acts_scale, self.gradient_net.act_fun)
+		#self.reg_total += reg
+		return output 
 
 class ODEFunc_(nn.Module):
 	def __init__(self, input_dim, latent_dim, ode_func_net, device = torch.device("cpu")):
@@ -44,7 +93,7 @@ class ODEFunc_(nn.Module):
 		return self.get_ode_gradient_nn(t_local, y)
 
 class POULayer(nn.Module):
-	def __init__(self, bias=True,npart=3, npoly=0):
+	def __init__(self, bias=True, npart=3, npoly=0):
 		super().__init__()
 		self.npart = npart
 		self.npolydim = npoly+1
@@ -65,6 +114,38 @@ class POULayer(nn.Module):
 		basis = torch.pow(t,self.Ppow)
 		poly = torch.einsum('ijk,k->ij',self.coeffs,basis)
 		parts = self.getpoulayer(t)
+		return torch.einsum('ij,kj->i', poly, parts) 
+
+class POUMaskLayer(nn.Module):
+	#def __init__(self, bias=True, npart=4, npoly=0):
+	def __init__(self, bias=True, npart=8, npoly=0):
+		super().__init__()
+		self.npart = npart
+		self.npolydim = npoly+1
+		#self.xrbf =  nn.Parameter(torch.linspace(15.0, 65.0, npart))
+		#self.xrbf =  nn.Parameter(torch.linspace(20.0, 80.0, npart))
+		#self.xrbf =  nn.Parameter(torch.linspace(20.0, 100.0, npart))
+		self.xrbf =  nn.Parameter(torch.linspace(10.0, 105.0, npart))
+
+		#self.epsrbf = nn.Parameter(((1.0)/npart)*torch.ones(npart))
+		self.epsrbf = nn.Parameter(((2.0)/npart)*torch.ones(npart))
+		self.Ppow = torch.arange(0,float(self.npolydim))
+
+	def reset_parameters(self):
+		torch.nn.init.zeros_(self.coeffs)
+		
+	def getpoulayer(self, x):
+		rrbf = torch.transpose(torch.pow(torch.abs(x.unsqueeze(0)-self.xrbf.unsqueeze(1)),1), 1, 0) 
+		rbflayer = torch.exp( - (rrbf/(torch.pow(self.epsrbf,2.0)+1.e-4) ) ) 
+		rbfsum = torch.sum(rbflayer, axis=1)
+		return torch.transpose(torch.transpose(rbflayer, 1, 0)/rbfsum, 1, 0)
+		        
+	def calculate_weights(self, t):
+		basis = torch.pow(t,self.Ppow)
+		poly = torch.einsum('ijk,k->ij',self.coeffs,basis) # i: # weights, j: # partitions
+		#poly_masked = torch.einsum('ij,ij->ij',poly, self.masks)
+		parts = self.getpoulayer(t)
+		#return torch.einsum('ij,kj->i', poly_masked, parts) 
 		return torch.einsum('ij,kj->i', poly, parts) 
 
 class POULinear(POULayer):
@@ -105,6 +186,26 @@ class POUPoly(POULayer):
 		w = self.calculate_weights(t)
 		self.weight = w[0:self.in_features*self.out_features].reshape(self.out_features, self.in_features)
 		return torch.nn.functional.linear(input, self.weight)
+
+class POUMaskPoly(POUMaskLayer):
+	def __init__(self, in_features, out_features, bias=True):       
+		super().__init__(bias)
+        
+		self.in_features, self.out_features = in_features, out_features
+		self.weight = torch.Tensor(out_features, in_features)
+		self.register_parameter('bias', None)         
+
+		self.coeffs = torch.nn.Parameter(torch.zeros((in_features+1)*out_features, self.npart, self.npolydim))        
+		#self.register_buffer('masks',torch.ones(((in_features+1)*out_features, self.npart)))
+		self.reset_parameters()  
+		                
+	def forward(self, input):
+		t = input[-1,-1]
+		input = input[:,:-1]
+		w = self.calculate_weights(t)
+		self.weight = w[0:self.in_features*self.out_features].reshape(self.out_features, self.in_features)
+		return torch.nn.functional.linear(input, self.weight)
+
 
 class DepthCat(nn.Module):
 	def __init__(self, idx_cat=1):
@@ -157,6 +258,25 @@ class ODEfuncPOUPoly(nn.Module):
 		output = self.net(P)
 		return output 
 
+class ODEfuncPOUMaskPoly(nn.Module):
+	def __init__(self, dim, order, C_init=None, device = torch.device("cpu")):
+		super(ODEfuncPOUMaskPoly, self).__init__()
+		self.NFE = 0
+		self.TP = TotalDegree(dim,order)
+	
+		self.net = nn.Sequential(
+			DepthCat(1),
+			POUMaskPoly(self.TP.nterms, dim)
+		)
+
+	def forward(self, t, y):
+		for _, module in self.net.named_modules():
+			if hasattr(module, 't'):
+				module.t = t
+		P = self.TP(y)
+		output = self.net(P)
+		return output 
+
 class ODEfunc(nn.Module):
 	def __init__(self, dim, nlayer, nunit, device = torch.device("cpu")):
 		super(ODEfunc, self).__init__()
@@ -168,9 +288,10 @@ class ODEfunc(nn.Module):
 		return output 
 
 class ODEfuncPoly(nn.Module):
-	def __init__(self, dim, order, C_init=None, device = torch.device("cpu")):
+	def __init__(self, dim, order, feature_names=None,C_init=None, device = torch.device("cpu")):
 		super(ODEfuncPoly, self).__init__()
 		self.NFE = 0
+		self.dim = dim
 		#self.TP = TensorProduct(dim,order)
 		self.TP = TotalDegree(dim,order)
 		#self.TP = Taylor(dim,order)
@@ -182,6 +303,33 @@ class ODEfuncPoly(nn.Module):
 			#self.C.weight = nn.Parameter(torch.tensor(C_init))
 		#utils.init_network_weights_orthogonal(self.C)
 		nn.init.zeros_(self.C.weight)
+		if feature_names is None:
+			self.feature_names = ['x_{:d}'.format(i) for i in range(dim)]
+		self.dict = []
+        
+	def get_dict(self):
+		indc = sorted(self.TP.indc)
+		power = [[ind.count(d) for d in range(self.dim)] for ind in indc]
+		dict = []
+		for ind in range(len(indc)):
+			dict_cur = ""
+			for i in range(len(power[ind])):
+				if power[ind][i] != 0:
+					dict_cur += self.feature_names[i]+"^"+str(power[ind][i])
+			if dict_cur == '':
+				dict_cur = 'c'
+			dict.append(dict_cur)
+		#print(dict)
+		self.dict = dict
+		for i in range(self.dim):
+			dot_exp = "\dot{"+self.feature_names[i]+"}"
+			for d in range(len(dict)):
+				if self.C.weight[i,d] != 0: 
+					if self.C.weight[i,d] > 0:
+						dot_exp +="+"+str(self.C.weight[i,d].detach().numpy()) +  dict[d]
+					else:
+						dot_exp +=str(self.C.weight[i,d].detach().numpy()) +  dict[d]
+			print(r"$"+dot_exp+"$")
 
 	def forward(self, t, y):
 		P = self.TP(y)
@@ -327,6 +475,67 @@ class ODEfuncGNN(nn.Module):
 	def forward(self, t, y):
 		P_E = self.P_E(y)
 		E = self.C(P_E) 
+
+		dE = torch.autograd.grad(E.sum(), y, create_graph=True)[0]
+		LdE = dE @ self.L.t()
+
+		S = y[:,-1]
+		dS = torch.autograd.grad(S.sum(), y, create_graph=True)[0]
+
+		MdS = self.friction_matvec(dE,dS)
+		output = LdE + MdS
+
+		#self.friction_matrix(dE) 
+		#self.MdE = self.friction_matvec(dE,dE)
+		#print(self.MdE)
+		# post proc
+		self.dEdt(dE,dS)
+		self.dSdt(dE,dS)
+		return output 
+
+class ODEfuncGNNMLP(nn.Module):
+	def __init__(self, dim, D1, D2, lE, nE, device = torch.device("cpu")):
+		super(ODEfuncGNNMLP, self).__init__()
+		self.NFE = 0
+		
+		self.E = utils.create_net(dim, 1, n_layers=lE, n_units=nE, nonlinear = nn.Tanh).to(device)
+
+		self.L = np.zeros((dim,dim))
+		self.L[0,1], self.L[1,0] = 1, -1
+		self.L = torch.tensor(self.L).to(device)
+
+		self.D_M = nn.Parameter(torch.randn((D1, D2), requires_grad=True))
+		self.L_M = nn.Parameter(torch.randn((dim, dim, D1), requires_grad=True))
+
+	def friction_matrix(self,dE):
+		D = self.D_M @ torch.transpose(self.D_M, 0, 1)
+		L = (self.L_M - torch.transpose(self.L_M, 0, 1))/2.0
+		zeta = torch.einsum('abm,mn,cdn->abcd',L,D,L) # zeta [alpha, beta, mu, nu] 
+		self.M = torch.einsum('abmn,zb,zn->zam',zeta,dE,dE)
+
+	def friction_matvec(self,dE,dS): 	
+		D = self.D_M @ torch.transpose(self.D_M, 0, 1)
+		L = (self.L_M - torch.transpose(self.L_M, 0, 1))/2.0
+		zeta = torch.einsum('abm,mn,cdn->abcd',L,D,L) # zeta [alpha, beta, mu, nu] 
+		MdS = torch.einsum('abmn,zb,zm,zn->za',zeta,dE,dS,dE)
+		return MdS 
+
+	def dEdt(self,dE,dS):
+		D = self.D_M @ torch.transpose(self.D_M, 0, 1)
+		L = (self.L_M - torch.transpose(self.L_M, 0, 1))/2.0
+		zeta = torch.einsum('abm,mn,cdn->abcd',L,D,L) # zeta [alpha, beta, mu, nu] 
+		MdS = torch.einsum('abmn,zb,zm,zn->za',zeta,dE,dS,dE)
+		self.dEMdS = torch.einsum('za,za->z',dE,MdS)
+
+	def dSdt(self,dE,dS):
+		D = self.D_M @ torch.transpose(self.D_M, 0, 1)
+		L = (self.L_M - torch.transpose(self.L_M, 0, 1))/2.0
+		zeta = torch.einsum('abm,mn,cdn->abcd',L,D,L) # zeta [alpha, beta, mu, nu] 
+		MdS = torch.einsum('abmn,zb,zm,zn->za',zeta,dE,dS,dE)
+		self.dSMdS = torch.einsum('za,za->z',dS,MdS)
+
+	def forward(self, t, y):
+		E = self.E(y) 
 
 		dE = torch.autograd.grad(E.sum(), y, create_graph=True)[0]
 		LdE = dE @ self.L.t()

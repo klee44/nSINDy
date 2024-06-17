@@ -35,9 +35,9 @@ warmup = 10000
 n = 3
 
 # dataset 
-n_train = 10#80#1600
-n_val = 10#16#320
-n_test = 10#16#320
+n_train = 160#1600
+n_val = 32#320
+n_test = 32#320
 
 # simulate training trials 
 pre_t = np.linspace(0, warmup*dt, warmup+1)
@@ -88,4 +88,4 @@ for i in range(n_test):
 #val_data += noise*val_data.std(1).mean(0)*np.random.randn(*val_data.shape)
 #test_data += noise*test_data.std(1).mean(0)*np.random.randn(*test_data.shape)
 
-np.savez('lorenz_torch_si.npz', train_data=train_data,val_data=val_data,test_data=test_data)
+np.savez('lorenz_torch_160.npz', train_data=train_data,val_data=val_data,test_data=test_data)

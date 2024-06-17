@@ -14,7 +14,7 @@ from random import SystemRandom
 import matplotlib.pyplot as plt
 
 import lib.utils as utils
-from lib.odefunc import ODEfunc, ODEfuncPoly
+from lib.odefunc import ODEfunc, ODEfuncPoly, ODEfunc_KAN
 #from lib.torchdiffeq import odeint as odeint
 from lib.torchdiffeq import odeint_adjoint as odeint
 #import lib.odeint as odeint
@@ -29,6 +29,10 @@ parser.add_argument('--niterbatch', type=int, default=100, help='max epochs')
 
 parser.add_argument('--nlayer', type=int, default=4, help='max epochs')
 parser.add_argument('--nunit', type=int, default=25, help='max epochs')
+
+parser.add_argument('--grid', type=int, default=5, help='max epochs')
+parser.add_argument('--k', type=int, default=3, help='max epochs')
+parser.add_argument('--kanlayer', type=int, nargs='*', default=None, help='max epochs')
 
 parser.add_argument('--lMB', type=int, default=100, help='length of seq in each MB')
 parser.add_argument('--nMB', type=int, default=40, help='length of seq in each MB')
@@ -54,20 +58,19 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-#data = np.load("../data/lorenz_torch.npz")
-data = np.load("../data/lorenz_torch_timeunit30.npz")
+data = np.load("../data/lorenz_torch.npz")
+#data = np.load("../data/lorenz_torch_timeunit30.npz")
 h_ref = 5e-4 
 #Time = 2.56 
-Time = 2.56 * 6
+Time = 2.56 #* 6
 N_steps = int(np.floor(Time/h_ref)) + 1
 t = np.expand_dims(np.linspace(0,Time,N_steps,endpoint=True,dtype=np.float64),axis=-1)[::1] 
 t = torch.tensor(t).squeeze()
 
-
-
 test_data = torch.utils.data.DataLoader(torch.tensor(data['test_data']),batch_size=50)
 #odefunc = ODEfunc(3, args.nlayer, args.nunit)
 odefunc = ODEfuncPoly(3, 2)
+#odefunc = ODEfunc_KAN(3, args.kanlayer, args.grid, args.k)
 
 ckpt = torch.load(ckpt_path)
 odefunc.load_state_dict(ckpt['state_dict'])
@@ -117,11 +120,12 @@ plt.plot(t,data['test_data'][target_id,:,2],lw=3,color='g')
 plt.plot(t,test_sol[target_id,:,2],lw=2,color='mistyrose',ls='--')
 
 plt.margins(0,0.04)
-plt.title('Lorenz - longer simulation')
+plt.title('Lorenz')
+#plt.title('Lorenz - longer simulation')
 #plt.tight_layout()
 
-#save_file = os.path.join(fig_save_path,"lorenz_example.png")
-save_file = os.path.join(fig_save_path,"lorenz_example_timeunit30.png")
+save_file = os.path.join(fig_save_path,"lorenz_example.png")
+#save_file = os.path.join(fig_save_path,"lorenz_example_timeunit30.png")
 plt.savefig(save_file)
 plt.close(fig)
 plt.close('all')

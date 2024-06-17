@@ -54,7 +54,8 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/lorenz_torch_noise1.npz")
+#data = np.load("../data/lorenz_torch_noise1.npz")
+data = np.load("../data/lorenz_torch.npz")
 h_ref = 5e-4 
 Time = 2.56 
 N_steps = int(np.floor(Time/h_ref)) + 1
@@ -105,7 +106,7 @@ for itr in range(args.nepoch):
 	
 	
 	print(odefunc.C.weight)
-	if itr > 100:
+	if (itr % 1) == 0:
 		with torch.no_grad():
 			val_loss = 0
 			
@@ -122,12 +123,22 @@ for itr in range(args.nepoch):
 			plt.figure()
 			plt.tight_layout()
 			save_file = os.path.join(fig_save_path,"image_{:03d}.png".format(frame))
-			fig = plt.figure(figsize=(12,4))
+			fig = plt.figure(figsize=(4,3))
 			axes = []
+			colors = ['r','g','b']
+			
 			for i in range(3):
-				axes.append(fig.add_subplot(1,3,i+1))
-				axes[i].plot(t,d[0,:,i].detach().numpy(),lw=2,color='k')
-				axes[i].plot(t,pred_y.detach().numpy()[0,:,i],lw=2,color='c',ls='--')
+				axes.append(fig.add_subplot(3,1,i+1))
+				axes[i].scatter(t[::100],d[0,::100,i].detach().numpy(),lw=2,color='k',marker='x')
+				axes[i].plot(t,pred_y.detach().numpy()[0,:,i],lw=2,color=colors[i],ls='--')
+				if i == 0:
+					axes[i].set_ylim([-16,16])
+				elif i == 1:
+					axes[i].set_ylim([-22,21])
+				else:
+					axes[i].set_ylim([7,42])
+				plt.tick_params(left = False, right = False , labelleft = False , 
+                			labelbottom = False, bottom = False) 
 				plt.savefig(save_file)
 			plt.close(fig)
 			plt.close('all')

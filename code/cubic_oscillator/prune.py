@@ -54,7 +54,7 @@ fig_save_path = os.path.join(save_path,"experiment_"+str(experimentID))
 utils.makedirs(fig_save_path)
 print(ckpt_path)
 
-data = np.load("../data/cubic_oscillator_torch_noise1.npz")
+data = np.load("../data/cubic_oscillator_torch.npz")
 h_ref = 0.01 
 Time = 51.20 
 N_steps = int(np.floor(Time/h_ref)) + 1

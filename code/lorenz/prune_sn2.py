@@ -83,13 +83,13 @@ C_init = np.linalg.lstsq(rhs.detach().numpy(), lhs.detach().numpy())[0].transpos
 odefunc = ODEfuncPoly(2, 3, C_init)
 '''
 odefunc = ODEfuncPoly(3, 2)
-resblock = utils.ResBlock(3, 2, 100)
+#resblock = utils.ResBlock(3, 2, 100)
 
 parameters_to_prune = ((odefunc.C, "weight"),)
 print(odefunc.C.weight)
 
 #params = odefunc.parameters()
-params = list(odefunc.parameters()) + list(resblock.parameters())
+params = list(odefunc.parameters()) #+ list(resblock.parameters())
 optimizer = optim.Adamax(params, lr=args.lr)
 #scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9987)
 scheduler = optim.lr_scheduler.ExponentialLR(optimizer, 0.9999999)
@@ -106,9 +106,9 @@ for itr in range(args.nepoch):
 		pred_y_forward = odeint(odefunc, batch_y0, batch_t, method=args.odeint).to(device).transpose(0,1)
 		#batch_yT = resblock(batch_yT)
 		pred_y_backward = odeint(odefunc, batch_yT, batch_t_backward, method=args.odeint).to(device).transpose(0,1)
-		loss = torch.mean(torch.abs(pred_y_forward - pred_y_backward.flip([1])))
-		#loss = torch.mean(torch.abs(pred_y_forward - batch_y_forward))
-		#loss += torch.mean(torch.abs(pred_y_backward - batch_y_backward))
+		#loss = torch.mean(torch.abs(pred_y_forward - pred_y_backward.flip([1])))
+		loss = torch.mean(torch.abs(pred_y_forward - batch_y_forward))
+		loss += torch.mean(torch.abs(pred_y_backward - batch_y_backward))
 		l1_norm = 1e-4*torch.norm(odefunc.C.weight, p=1)
 		loss += l1_norm
 		print(itr,i,loss.item(),l1_norm.item())

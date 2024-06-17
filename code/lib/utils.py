@@ -81,6 +81,46 @@ def get_batch_two(data, t, batch_len=60, batch_size=100, device = torch.device("
 	batch_y_backward = batch_y.flip([1])
 	return batch_y0.to(device), batch_t.to(device), batch_y.to(device), batch_y0_backward.to(device), batch_t_backward.to(device), batch_y_backward.to(device)
 
+
+def get_batch_two_noisy(data, noisy_data, t, batch_len=60, batch_size=100, device = torch.device("cpu"), reverse=False):
+	r = torch.from_numpy(np.random.choice(np.arange(len(data),dtype=np.int64),batch_size, replace=False))
+	s = torch.from_numpy(np.random.choice(np.arange(len(t) - batch_len, dtype=np.int64), batch_size, replace=False))
+	batch_y0 = data[r,s,:]  # (M, D)
+	batch_t = t[:batch_len]  # (T)
+	batch_y = torch.stack([noisy_data[r,s + i,:] for i in range(batch_len)], dim=1)  # (T, M, D)
+	
+	batch_y0_backward = batch_y[:,-1,:]
+	batch_t_backward = batch_t.flip([0])
+	batch_y_backward = batch_y.flip([1])
+	return batch_y0.to(device), batch_t.to(device), batch_y.to(device), batch_y0_backward.to(device), batch_t_backward.to(device), batch_y_backward.to(device)
+
+def get_batch_two_noisy_ic(data, noisy_data, t, batch_len=60, batch_size=100, device = torch.device("cpu"), reverse=False):
+	r = torch.from_numpy(np.random.choice(np.arange(len(data),dtype=np.int64),batch_size, replace=False))
+	s = torch.from_numpy(np.random.choice(np.arange(len(t) - batch_len, dtype=np.int64), batch_size, replace=False))
+	batch_y0 = data[r,0,:]  # (M, D)
+	batch_t = t[:batch_len]  # (T)
+	batch_y = torch.stack([noisy_data[r, i,:] for i in range(batch_len)], dim=1)  # (T, M, D)
+	
+	batch_y0_backward = batch_y[:,-1,:]
+	batch_t_backward = batch_t.flip([0])
+	batch_y_backward = batch_y.flip([1])
+	return batch_y0.to(device), batch_t.to(device), batch_y.to(device), batch_y0_backward.to(device), batch_t_backward.to(device), batch_y_backward.to(device)
+
+
+def get_batch_two_t_fixed(data, t, batch_len=60, batch_size=100, device = torch.device("cpu"), reverse=False):
+	r = torch.from_numpy(np.random.choice(np.arange(len(data),dtype=np.int64),batch_size, replace=False))
+	s = torch.from_numpy(np.random.choice(np.arange(len(t) - batch_len, dtype=np.int64), 1, replace=False))
+	batch_y0 = data[r,s,:]  # (M, D)
+	batch_t = t[s:s+batch_len]  # (T)
+	batch_y = torch.stack([data[r,s + i,:] for i in range(batch_len)], dim=1)  # (T, M, D)
+	
+	batch_y0_backward = batch_y[:,-1,:]
+	batch_t_backward = batch_t.flip([0])
+	batch_y_backward = batch_y.flip([1])
+	return batch_y0.to(device), batch_t.to(device), batch_y.to(device), batch_y0_backward.to(device), batch_t_backward.to(device), batch_y_backward.to(device)
+
+
+
 def get_batch_two_single(data, t, batch_len=60, batch_size=100, device = torch.device("cpu"), reverse=False):
 	s = torch.from_numpy(np.random.choice(np.arange(len(t) - batch_len, dtype=np.int64), batch_size, replace=False))
 	batch_y0 = data[0,s,:]  # (M, D)
@@ -138,7 +178,7 @@ class TotalDegree(nn.Module):
 		self.dim = dim
 		self.indc = Counter(map(toolz.compose(tuple,sorted),itertools.chain(*[itertools.product(*[range(dim) for _ in range(o)]) for o in range(order+1)])
                   ))
-		print(sorted(self.indc))
+		#print(sorted(self.indc))
 		self.nterms = len(self.indc)
 
 	def forward(self,x):
